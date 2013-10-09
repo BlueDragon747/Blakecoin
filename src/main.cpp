@@ -1112,8 +1112,6 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 200% adjustment...
-        // bnResult *= 2;
         // Maximum 150% adjustment
         bnResult *= 150;
         bnResult /= 100;
@@ -2510,11 +2508,6 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
         return 0;
     return hashMerkleRoot;
 }
-
-
-
-
-
 
 
 bool AbortNode(const std::string &strMessage) {
