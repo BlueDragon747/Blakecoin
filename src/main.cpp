@@ -1156,7 +1156,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return pindexLast->nBits;
     }
 
-    // Go back by what we want to be nInterval blocks 
+    // Go back by what we want to be nInterval blocks
     const CBlockIndex* pindexFirst = pindexLast;
     for (int i = 0; pindexFirst && i < nInterval-1; i++)
         pindexFirst = pindexFirst->pprev;
@@ -1165,9 +1165,20 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     // Limit adjustment step
     int64 nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
     printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
-    int64 LimitUp = nTargetTimespan * 100 / 115; // up
-    if (nActualTimespan < LimitUp)
+    const CBlockIndex* nActualHeight = pindexLast;
+    int pHeight = nActualHeight->nHeight;
+    printf("  pHeight = %"PRI64d"  \n", pHeight);
+    int64 LimitUp = nTargetTimespan * 100 / 115; // up 15%
+    int64 LimitUp2 = nTargetTimespan * 100 / 103; // up 3%
+
+    if (nActualTimespan < nTargetTimespan/4 && pHeight >= 3500)
+       {
+        nActualTimespan = LimitUp2;
+       }
+    if (nActualTimespan < LimitUp && pHeight <= 3499)
+       {
         nActualTimespan = LimitUp;
+       }
     if (nActualTimespan > nTargetTimespan*2)
         nActualTimespan = nTargetTimespan*2;
 
@@ -2806,6 +2817,44 @@ bool InitBlockIndex() {
         printf("%s\n", block.hashMerkleRoot.ToString().c_str());
         block.print();
         assert(block.hashMerkleRoot == uint256("0x9e4654d5bb91c723c3dbbaee57761d06ed10ac17f4d8841746aeec7ff8206ddc"));
+
+        /*
+        //gen
+        // If genesis block hash does not match, then generate new genesis hash.
+        if (true && block.GetHash() != hashGenesisBlock)
+        {
+            printf("Searching for genesis block...\n");
+            // This will figure out a valid hash and Nonce if you're
+            // creating a different genesis block:
+            uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
+            uint256 thash;
+            //char scratchpad[SCRYPT_SCRATCHPAD_SIZE];
+
+            loop
+            {
+                Hashblake(BEGIN(block.nVersion), BEGIN(thash));
+                if (thash <= hashTarget)
+                    break;
+                if ((block.nNonce & 0xFFF) == 0)
+                {
+                    printf("nonce %08X: hash = %s (target = %s)\n", block.nNonce, thash.ToString().c_str(), hashTarget.ToString().c_str());
+                }
+                ++block.nNonce;
+                if (block.nNonce == 0)
+                {
+                    printf("NONCE WRAPPED, incrementing time\n");
+                    ++block.nTime;
+                }
+            }
+            printf("block.nTime = %u \n", block.nTime);
+            printf("block.nNonce = %u \n", block.nNonce);
+            printf("block.GetHash = %s\n", block.GetHash().ToString().c_str());
+        }
+
+        block.print();
+        //gen
+        */
+
         assert(hash == hashGenesisBlock);
 
         // Start new block file
