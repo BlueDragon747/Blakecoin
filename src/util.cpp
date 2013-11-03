@@ -1319,7 +1319,7 @@ void AddTimeData(const CNetAddr& ip, int64 nTime)
         int64 nMedian = vTimeOffsets.median();
         std::vector<int64> vSorted = vTimeOffsets.sorted();
         // Only let other nodes change our time by so much
-        if (abs64(nMedian) < 20 * 60)
+        if (abs64(nMedian) < 60 * 60)
         {
             nTimeOffset = nMedian;
         }
