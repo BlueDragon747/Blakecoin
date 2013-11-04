@@ -1067,9 +1067,9 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 static const int64 nGenesisBlockRewardCoin = 5 * COIN;
 static const int64 nBlockRewardStartCoin = 25 * COIN;
 
-static const int64 nTargetTimespan = 3600; // 60 minutes
-static const int64 nTargetSpacing = 60; // 1 minutes
-static const int64 nInterval = nTargetTimespan / nTargetSpacing; // 60 blocks
+static const int64 nTargetTimespan = 60 * 60; // 60 minutes
+static const int64 nTargetSpacing = 3 * 60; // 3 minutes
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // 20 blocks
 
 int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nBits)
 {
