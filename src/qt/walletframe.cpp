@@ -128,5 +128,4 @@ void WalletFrame::unlockWallet()
 void WalletFrame::setEncryptionStatus()
 {
     walletStack->setEncryptionStatus();
-};
-
+}
