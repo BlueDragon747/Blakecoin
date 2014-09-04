@@ -4,7 +4,7 @@ Blakecoin Wallet
 
 http://www.blakecoin.org
 
-Blake-256(optimized) faster than scrypt and faster than sha256 in C (asm is still faster for sha256d)
+Blake-256(optimized) faster than scrypt and faster than sha256d
 
 The algorithm was written as a candidate for sha3, Based on round one candidate code from the sphlib 2.1 and reduced rounds to 8.
 
