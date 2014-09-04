@@ -11,6 +11,20 @@
 using namespace json_spirit;
 using namespace std;
 
+static CReserveKey* pMiningKey = NULL;
+
+void InitRPCMining()
+
+{
+     pMiningKey = new CReserveKey(pwalletMain);
+	 
+}
+
+void ShutdownRPCMining()
+{
+     delete pMiningKey; pMiningKey = NULL;
+}
+	 
 // Return average network hashes per second based on the last 'lookup' blocks,
 // or from the last difficulty change if 'lookup' is nonpositive.
 // If 'height' is nonnegative, compute the estimate at the time when a given block was found.
