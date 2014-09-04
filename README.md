@@ -1,4 +1,4 @@
-Forked from Bitcoin reference wallet 0.8.5
+Forked from Bitcoin reference wallet 0.8.6
 
 Blakecoin Wallet
 
