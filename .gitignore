@@ -2,6 +2,7 @@ src/*.exe
 src/bitcoin
 src/bitcoind
 src/test_bitcoin
+src/qt/locale/*.ts
 .*.swp
 *.*~*
 *.bak
