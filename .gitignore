@@ -10,6 +10,9 @@ src/test_bitcoin
 *.o
 *.patch
 .bitcoin
+*.ts
+*.d.ts
+.ts
 
 # Compilation and Qt preprocessor part
 *.qm
