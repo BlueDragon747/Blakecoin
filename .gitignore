@@ -10,7 +10,7 @@ src/qt/locale/*.ts
 *.orig
 *.o
 *.patch
-.bitcoin
+.blakecoin
 *.ts
 *.d.ts
 .ts
@@ -18,12 +18,12 @@ src/qt/locale/*.ts
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-bitcoin-qt
-Bitcoin-Qt.app
+blakecoin-qt
+Blakecoin-Qt.app
 
 # Unit-tests
 Makefile.test
-bitcoin-qt_test
+blakecoin-qt_test
 
 # Resources cpp
 qrc_*.cpp
