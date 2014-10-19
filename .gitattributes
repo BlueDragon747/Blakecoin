@@ -1,3 +1,2 @@
 *.ts linguist-language=c_cpp
-
 src/version.cpp export-subst
