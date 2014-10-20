@@ -30,10 +30,6 @@ using namespace boost;
 using namespace boost::asio;
 using namespace json_spirit;
 
-// Key used by getwork/getblocktemplate miners.
-// Allocated in StartRPCThreads, free'd in StopRPCThreads
-CReserveKey* pMiningKey = NULL;
-
 static std::string strRPCUserColonPass;
 
 // These are created by StartRPCThreads, destroyed in StopRPCThreads
@@ -207,6 +203,7 @@ static const CRPCCommand vRPCCommands[] =
     { "addnode",                &addnode,                true,      true },
     { "getaddednodeinfo",       &getaddednodeinfo,       true,      true },
     { "getdifficulty",          &getdifficulty,          true,      false },
+    { "getnetworkhashps",       &getnetworkhashps,       true,      false },
     { "getgenerate",            &getgenerate,            true,      false },
     { "setgenerate",            &setgenerate,            true,      false },
     { "gethashespersec",        &gethashespersec,        true,      false },
@@ -727,9 +724,7 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, 
 
 void StartRPCThreads()
 {
-    // getwork/getblocktemplate mining rewards paid here:
-    pMiningKey = new CReserveKey(pwalletMain);
-
+ 
     strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
     if ((mapArgs["-rpcpassword"] == "") ||
         (mapArgs["-rpcuser"] == mapArgs["-rpcpassword"]))
@@ -849,8 +844,6 @@ void StartRPCThreads()
 
 void StopRPCThreads()
 {
-    delete pMiningKey; pMiningKey = NULL;
-
     if (rpc_io_service == NULL) return;
 
     rpc_io_service->stop();
@@ -1146,6 +1139,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getaddednodeinfo"       && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getnetworkhashps"       && n > 0) ConvertTo<boost::int64_t>(params[0]);
+    if (strMethod == "getnetworkhashps"       && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "sendtoaddress"          && n > 1) ConvertTo<double>(params[1]);
     if (strMethod == "settxfee"               && n > 0) ConvertTo<double>(params[0]);
     if (strMethod == "getreceivedbyaddress"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
