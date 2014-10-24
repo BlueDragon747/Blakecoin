@@ -71,7 +71,6 @@ contains(USE_QRCODE, 1) {
     message(Building with QRCode support)
     DEFINES += USE_QRCODE
     LIBS += -lqrencode
-    #DEFINES += USE_UPNP=$$USE_UPNP STATICLIB
     INCLUDEPATH += $$LIBPNG_INCLUDE_PATH
     INCLUDEPATH += $$QRENCODE_INCLUDE_PATH
     LIBS += $$join(QRENCODE_LIB_PATH,,-L,) -lqrencode
