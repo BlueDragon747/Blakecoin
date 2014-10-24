@@ -1,10 +1,10 @@
 TEMPLATE = app
 TARGET = blakecoin-qt
 macx:TARGET = "Blakecoin-Qt"
-VERSION = 0.8.9
+VERSION = 0.8.9.2
 INCLUDEPATH += src src/json src/qt
 QT += network
-DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
+DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN
 CONFIG += no_include_pwd
 CONFIG += thread
 
@@ -18,16 +18,21 @@ CONFIG += thread
 #    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
 #    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
 
+# Start of Windows Path Uncomment and change if your paths are diffrent
 BOOST_LIB_SUFFIX=-mgw46-mt-sd-1_55
-BOOST_INCLUDE_PATH=C:\deps\boost_1_55_0
-BOOST_LIB_PATH=C:\deps\boost_1_55_0\stage\lib
-BDB_INCLUDE_PATH=C:\deps\db-4.8.30.NC\build_unix
-BDB_LIB_PATH=C:\deps\db-4.8.30.NC\build_unix
-OPENSSL_INCLUDE_PATH=C:\deps\openssl-1.0.1g\include
-OPENSSL_LIB_PATH=C:\deps\openssl-1.0.1g
+BOOST_INCLUDE_PATH=C:/deps/boost_1_55_0
+BOOST_LIB_PATH=C:/deps/boost_1_55_0/stage/lib
+BDB_INCLUDE_PATH=C:/deps/db-4.8.30.NC/build_unix
+BDB_LIB_PATH=C:/deps/db-4.8.30.NC/build_unix
+OPENSSL_INCLUDE_PATH=C:/deps/openssl-1.0.1j/include
+OPENSSL_LIB_PATH=C:/deps/openssl-1.0.1j
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
-MINIUPNPC_INCLUDE_PATH=C:\deps\miniupnpc
-MINIUPNPC_LIB_PATH=C:\deps\miniupnpc
+MINIUPNPC_INCLUDE_PATH=C:/deps/miniupnpc
+MINIUPNPC_LIB_PATH=C:/deps/miniupnpc
+QRENCODE_INCLUDE_PATH=C:/deps/qrencode-3.4.4
+QRENCODE_LIB_PATH=C:/deps/qrencode-3.4.4/.libs
+LIBPNG_INCLUDE_PATH=C:/deps/libpng-1.6.12
+# End of Windows Paths
 
 OBJECTS_DIR = build
 MOC_DIR = build
@@ -66,6 +71,11 @@ contains(USE_QRCODE, 1) {
     message(Building with QRCode support)
     DEFINES += USE_QRCODE
     LIBS += -lqrencode
+    #DEFINES += USE_UPNP=$$USE_UPNP STATICLIB
+    INCLUDEPATH += $$LIBPNG_INCLUDE_PATH
+    INCLUDEPATH += $$QRENCODE_INCLUDE_PATH
+    LIBS += $$join(QRENCODE_LIB_PATH,,-L,) -lqrencode
+    win32:LIBS += -lpthread
 }
 
 # use: qmake "USE_UPNP=1" ( enabled by default; default)
