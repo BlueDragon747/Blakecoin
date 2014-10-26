@@ -2,7 +2,7 @@ Forked from Bitcoin reference wallet 0.8.6
 
 Blakecoin Wallet
 
-http://www.blakecoin.org
+https://www.blakecoin.org
 
 Blake-256(optimized) is faster than Scrypt, SHA-256D, Keccak, Groestl
 
