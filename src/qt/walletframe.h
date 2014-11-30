@@ -2,7 +2,7 @@
  * Qt4 bitcoin GUI.
  *
  * W.J. van der Laan 2011-2012
- * The Bitcoin Developers 2011-2013
+ * The Bitcoin Developers 2011-2014
  */
 #ifndef WALLETFRAME_H
 #define WALLETFRAME_H
@@ -13,12 +13,14 @@ class BitcoinGUI;
 class ClientModel;
 class WalletModel;
 class WalletStack;
+class WalletView;
 
 class WalletFrame : public QFrame
 {
     Q_OBJECT
+
 public:
-    explicit WalletFrame(BitcoinGUI *_gui);
+    explicit WalletFrame(BitcoinGUI *_gui = 0);
     ~WalletFrame();
 
     void setClientModel(ClientModel *clientModel);
@@ -36,6 +38,8 @@ private:
     BitcoinGUI *gui;
     ClientModel *clientModel;
     WalletStack *walletStack;
+
+    WalletView *currentWalletView();
 
 public slots:
     /** Switch to overview (home) page */
