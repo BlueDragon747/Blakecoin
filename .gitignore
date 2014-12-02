@@ -2,6 +2,7 @@ src/*.exe
 src/bitcoin
 src/bitcoind
 src/test_bitcoin
+src/qt/locale/*.ts
 .*.swp
 *.*~*
 *.bak
@@ -9,17 +10,20 @@ src/test_bitcoin
 *.orig
 *.o
 *.patch
-.bitcoin
+.blakecoin
+*.ts
+*.d.ts
+.ts
 
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-bitcoin-qt
-Bitcoin-Qt.app
+blakecoin-qt
+Blakecoin-Qt.app
 
 # Unit-tests
 Makefile.test
-bitcoin-qt_test
+blakecoin-qt_test
 
 # Resources cpp
 qrc_*.cpp

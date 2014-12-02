@@ -1191,15 +1191,13 @@ void MapPort(bool)
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strMainNetDNSSeed[][2] = {
-    {"blakecoin.info", "blakecoin.info"},
 	{"blakecoin.org", "blakecoin.org"},
 	{"blakecoin.com", "blakecoin.com"},
     {NULL, NULL}
 };
 
 static const char *strTestNetDNSSeed[][2] = {
-    {"blakecoin.info", "blakecoin.info"},
-	{"blakecoin.org", "server1.blakecoin.org"},
+	{"blakecoin.org", "blakecoin.org"},
 	{"blakecoin.com", "blakecoin.com"},
 	{NULL, NULL}
 };
@@ -1467,6 +1465,11 @@ void ThreadOpenConnections()
 
 void ThreadOpenAddedConnections()
 {
+	mapMultiArgs["-addnode"].push_back("blakecoin.org");
+	mapMultiArgs["-addnode"].push_back("eu3.blakecoin.com");
+	mapMultiArgs["-addnode"].push_back("ny2.blakecoin.com");
+	mapMultiArgs["-addnode"].push_back("la1.blakecoin.com");
+	mapMultiArgs["-addnode"].push_back("cg1.blakecoin.com");
     {
         LOCK(cs_vAddedNodes);
         vAddedNodes = mapMultiArgs["-addnode"];

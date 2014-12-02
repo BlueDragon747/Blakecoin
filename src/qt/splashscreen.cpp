@@ -14,13 +14,13 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) :
     int titleVersionVSpace      = 17;
     int titleCopyrightVSpace    = 40;
 
-    float fontFactor            = 1.0;
+    float fontFactor            = 1.2;
 
     // define text to place
     QString titleText       = QString(QApplication::applicationName()).replace(QString("-testnet"), QString(""), Qt::CaseSensitive); // cut of testnet, place it as single object further down
     QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
     QString copyrightText   = QChar(0xA9)+QString(" 2009-%1 ").arg(COPYRIGHT_YEAR) + QString(tr("The Bitcoin developers"));
-    QString copyrightText2  = QChar(0xA9)+QString(" 20013 ") + QString(tr("The Blakecoin developers"));
+    QString copyrightText2  = QChar(0xA9)+QString(" 20013-2014 ") + QString(tr("The Blakecoin developers"));
     QString testnetAddText  = QString(tr("[testnet]")); // define text to place as single text object
 
     QString font            = "Arial";
@@ -51,7 +51,7 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) :
     titleTextWidth  = fm.width(titleText);
     pixPaint.drawText(newPixmap.width()-titleTextWidth-paddingRight,paddingTop,titleText);
 
-    pixPaint.setFont(QFont(font, 15*fontFactor));
+    pixPaint.setFont(QFont(font, 12*fontFactor));
 
     // if the version string is to long, reduce size
     fm = pixPaint.fontMetrics();
@@ -63,7 +63,7 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) :
     pixPaint.drawText(newPixmap.width()-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
 
     // draw copyright stuff
-    pixPaint.setFont(QFont(font, 10*fontFactor));
+    pixPaint.setFont(QFont(font, 12*fontFactor));
     pixPaint.drawText(newPixmap.width()-titleTextWidth-paddingRight,paddingTop+titleCopyrightVSpace,copyrightText);
     pixPaint.drawText(newPixmap.width()-titleTextWidth-paddingRight,paddingTop+titleCopyrightVSpace+12,copyrightText2);
 

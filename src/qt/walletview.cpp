@@ -2,7 +2,7 @@
  * Qt4 bitcoin GUI.
  *
  * W.J. van der Laan 2011-2012
- * The Bitcoin Developers 2011-2013
+ * The Bitcoin Developers 2011-2014
  */
 #include "walletview.h"
 #include "bitcoingui.h"
@@ -21,7 +21,11 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QAction>
+#if QT_VERSION < 0x050000
 #include <QDesktopServices>
+#else
+#include <QStandardPaths>
+#endif
 #include <QFileDialog>
 #include <QPushButton>
 
@@ -233,7 +237,11 @@ void WalletView::encryptWallet(bool status)
 
 void WalletView::backupWallet()
 {
+#if QT_VERSION < 0x050000
     QString saveDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+#else
+    QString saveDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#endif
     QString filename = QFileDialog::getSaveFileName(this, tr("Backup Wallet"), saveDir, tr("Wallet Data (*.dat)"));
     if (!filename.isEmpty()) {
         if (!walletModel->backupWallet(filename)) {

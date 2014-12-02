@@ -29,7 +29,7 @@ INCLUDEPATHS= \
  -I"c:/deps/boost_1_55_0" \
  -I"c:/deps/db-4.8.30.NC/build_unix" \
  -I"c:/deps/miniupnpc" \
- -I"c:/deps/openssl-1.0.1g/include"
+ -I"c:/deps/openssl-1.0.1j/include"
 
 LIBPATHS= \
  -L"$(CURDIR)/leveldb" \
@@ -37,7 +37,7 @@ LIBPATHS= \
  -L"c:/deps/boost_1_55_0/stage/lib" \
  -L"c:/deps/db-4.8.30.NC/build_unix" \
  -L"c:/deps/miniupnpc" \
- -L"c:/deps/openssl-1.0.1g"
+ -L"c:/deps/openssl-1.0.1j"
 
 LIBS= \
  -l leveldb \
@@ -55,7 +55,7 @@ DEFS=-D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE
 DEBUGFLAGS=-g
 CFLAGS=-mthreads -O2 -w -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 # enable: ASLR, DEP and large address aware
-LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -Wl,--large-address-aware
+LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -Wl,--large-address-aware -static
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
@@ -64,7 +64,7 @@ ifndef USE_UPNP
 endif
 ifneq (${USE_UPNP}, -)
  LIBS += -l miniupnpc -l iphlpapi
- DEFS += -DSTATICLIB -DUSE_UPNP=$(USE_UPNP)
+ DEFS += -DMINIUPNP_STATICLIB -DSTATICLIB -DUSE_UPNP=$(USE_UPNP)
 endif
 
 ifneq (${USE_IPV6}, -)

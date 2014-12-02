@@ -2,7 +2,7 @@
  * Qt4 bitcoin GUI.
  *
  * W.J. van der Laan 2011-2012
- * The Bitcoin Developers 2011-2013
+ * The Bitcoin Developers 2011-2014
  */
 #ifndef WALLETVIEW_H
 #define WALLETVIEW_H
