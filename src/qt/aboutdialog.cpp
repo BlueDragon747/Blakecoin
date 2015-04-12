@@ -12,7 +12,7 @@ AboutDialog::AboutDialog(QWidget *parent) :
 
     // Set current copyright year
     ui->copyrightLabel->setText(
-        tr("Copyright") + QString(" &copy; 2009-%1 ").arg(COPYRIGHT_YEAR) + tr("The Bitcoin developers") + QString(",<br>") +
+        tr("Copyright") + QString(" &copy; 2009-2015 ") + tr("The Bitcoin developers") + QString(",<br>") +
         tr("Copyright") + QString(" &copy; 2013-2015 ") + tr("The Blakecoin developers"));
 }
 
