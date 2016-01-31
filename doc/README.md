@@ -33,6 +33,8 @@ Unpack the files into a directory and run:
 See the documentation at the [Bitcoin Wiki](https://en.bitcoin.it/wiki/Main_Page)
 for help and more information.
 
+building with Boost 1.58+ known issues see here for fix: https://github.com/bitcoin/bitcoin/pull/6114/files
+
 
 Other Pages
 ---------------------
