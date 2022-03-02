@@ -32,6 +32,7 @@
 
 #include <windows.h>
 #include <cassert>
+#include <intrin.h>
 
 namespace leveldb {
 namespace port {

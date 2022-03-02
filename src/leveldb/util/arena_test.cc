@@ -63,6 +63,6 @@ TEST(ArenaTest, Simple) {
 
 }  // namespace leveldb
 
-int main(int argc, char** argv) {
-  return leveldb::test::RunAllTests();
-}
+//int main(int argc, char** argv) {
+//  return leveldb::test::RunAllTests();
+//}

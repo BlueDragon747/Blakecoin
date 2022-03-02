@@ -6,8 +6,8 @@
 
 #include "util/coding.h"
 #include "util/logging.h"
-#include "util/testharness.h"
-#include "util/testutil.h"
+//#include "util/testharness.h"
+//#include "util/testutil.h"
 
 namespace leveldb {
 
@@ -46,7 +46,8 @@ class BloomTest {
       key_slices.push_back(Slice(keys_[i]));
     }
     filter_.clear();
-    policy_->CreateFilter(&key_slices[0], key_slices.size(), &filter_);
+    policy_->CreateFilter(&key_slices[0], static_cast<int>(key_slices.size()),
+                          &filter_);
     keys_.clear();
     if (kVerbose >= 2) DumpFilter();
   }
@@ -156,6 +157,6 @@ TEST(BloomTest, VaryingLengths) {
 
 }  // namespace leveldb
 
-int main(int argc, char** argv) {
-  return leveldb::test::RunAllTests();
-}
+//int main(int argc, char** argv) {
+//  return leveldb::test::RunAllTests();
+//}

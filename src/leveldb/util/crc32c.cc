@@ -8,6 +8,8 @@
 #include "util/crc32c.h"
 
 #include <stdint.h>
+
+#include "port/port.h"
 #include "util/coding.h"
 
 namespace leveldb {
