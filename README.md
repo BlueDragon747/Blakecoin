@@ -18,12 +18,11 @@ anyone, anywhere in the world. Blakecoin uses peer-to-peer technology to operate
 with no central authority: managing transactions and issuing money are carried
 out collectively by the network.
 
-Ubuntu 12.04 dependancies that are used on the Linux build machine:
+Ubuntu 18.04 dependancies that are used on the Linux build machine:
 
-git-core build-essential libssl-dev libboost-all-dev libdb5.1-dev libdb5.1++-dev libgtk2.0-dev libminiupnpc-dev qt4-qmake mingw32 synaptic qt-sdk qt4-dev-tools libqt4-dev libqt4-core libqt4-gui libdb++-dev
+wget git curl build-essential libssl-dev libboost-all-dev libminiupnpc-dev libdb4.8-dev libdb4.8++-dev
 
-Building with Boost 1.58+ known issues see here for fix: https://github.com/bitcoin/bitcoin/pull/6114/files
-
+Building with Boost 1.71+
 
 License
 
