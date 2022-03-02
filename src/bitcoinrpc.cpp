@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2022 The Blakecoin developers
+// Copyright (c) 2013-2018 The Blakecoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -584,6 +584,7 @@ public:
     }
     bool connect(const std::string& server, const std::string& port)
     {
+        //ip::tcp::resolver resolver(stream.get_io_service()); //older boost version
         boost::asio::ip::tcp::resolver resolver((boost::asio::io_context&)stream.get_executor().context());
         ip::tcp::resolver::query query(server.c_str(), port.c_str());
         ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
@@ -671,6 +672,7 @@ static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketA
                    const bool fUseSSL)
 {
     // Accept connection
+    //AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL); //older boost
     AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>((boost::asio::io_context&)acceptor->get_executor().context(), context, fUseSSL);
 
     acceptor->async_accept(
@@ -758,6 +760,7 @@ void StartRPCThreads()
 
     assert(rpc_io_service == NULL);
     rpc_io_service = new asio::io_service();
+    //rpc_ssl_context = new ssl::context(*rpc_io_service, ssl::context::sslv23); //older boost version
     rpc_io_service = new boost::asio::io_service();
     rpc_ssl_context = new ssl::context(ssl::context::sslv23);
 
@@ -1057,6 +1060,7 @@ Object CallRPC(const string& strMethod, const Array& params)
     // Connect to localhost
     bool fUseSSL = GetBoolArg("-rpcssl");
     asio::io_service io_service;
+    //ssl::context context(io_service, ssl::context::sslv23); //older boost version
     ssl::context context(ssl::context::sslv23);
     context.set_options(ssl::context::no_sslv2);
     asio::ssl::stream<asio::ip::tcp::socket> sslStream(io_service, context);
