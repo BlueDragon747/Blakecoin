@@ -766,9 +766,8 @@ void StartRPCThreads()
     rpc_io_service = new asio::io_service();
     // older boost version
     // rpc_ssl_context = new ssl::context(*rpc_io_service, ssl::context::sslv23);
-    //newer boost version 
+    // newer boost next 2 lines
     rpc_io_service = new boost::asio::io_service();
-    //newer boost version
     rpc_ssl_context = new ssl::context(ssl::context::sslv23);
 
     const bool fUseSSL = GetBoolArg("-rpcssl");
