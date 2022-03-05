@@ -585,9 +585,9 @@ public:
     bool connect(const std::string& server, const std::string& port)
     {
         // older boost version
-        // ip::tcp::resolver resolver(stream.get_io_service());
+        ip::tcp::resolver resolver(stream.get_io_service());
         // newer boost version 
-        boost::asio::ip::tcp::resolver resolver((boost::asio::io_context&)stream.get_executor().context()); 
+        // boost::asio::ip::tcp::resolver resolver((boost::asio::io_context&)stream.get_executor().context()); 
         ip::tcp::resolver::query query(server.c_str(), port.c_str());
         ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
         ip::tcp::resolver::iterator end;
@@ -675,9 +675,9 @@ static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketA
 {
     // Accept connection
     // older boost uncomment
-    // AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL); 
+    AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL); 
     // newer boost version uncomment 
-    AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>((boost::asio::io_context&)acceptor->get_executor().context(), context, fUseSSL);
+    // AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>((boost::asio::io_context&)acceptor->get_executor().context(), context, fUseSSL);
 
     acceptor->async_accept(
             conn->sslStream.lowest_layer(),
@@ -765,11 +765,11 @@ void StartRPCThreads()
     assert(rpc_io_service == NULL);
     rpc_io_service = new asio::io_service();
     // older boost version
-    // rpc_ssl_context = new ssl::context(*rpc_io_service, ssl::context::sslv23);
+    rpc_ssl_context = new ssl::context(*rpc_io_service, ssl::context::sslv23);
     // newer boost next 2 lines
-    rpc_io_service = new boost::asio::io_service();
-    rpc_ssl_context = new ssl::context(ssl::context::sslv23);
-
+    // rpc_io_service = new boost::asio::io_service();
+    // rpc_ssl_context = new ssl::context(ssl::context::sslv23);
+	//
     const bool fUseSSL = GetBoolArg("-rpcssl");
 
     if (fUseSSL)
@@ -1067,10 +1067,10 @@ Object CallRPC(const string& strMethod, const Array& params)
     bool fUseSSL = GetBoolArg("-rpcssl");
     asio::io_service io_service;
     // older boost version
-    // ssl::context context(io_service, ssl::context::sslv23);
+    ssl::context context(io_service, ssl::context::sslv23);
     // newer boost next 2 lines 
-    ssl::context context(ssl::context::sslv23);
-    context.set_options(ssl::context::no_sslv2);
+    // ssl::context context(ssl::context::sslv23);
+    // context.set_options(ssl::context::no_sslv2);
     // 
     asio::ssl::stream<asio::ip::tcp::socket> sslStream(io_service, context);
     SSLIOStreamDevice<asio::ip::tcp> d(sslStream, fUseSSL);
