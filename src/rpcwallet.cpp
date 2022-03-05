@@ -357,8 +357,8 @@ Value signmessage(const Array& params, bool fHelp)
     ss << strMessageMagic;
     ss << strMessage;
 
-std::vector<unsigned char> vchSig;
-if (!key.SignCompact(Hashblake(ss.begin(), ss.end()), vchSig))
+    std::vector<unsigned char> vchSig;
+    if (!key.SignCompact(Hashblake(ss.begin(), ss.end()), vchSig))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
 
     return EncodeBase64(&vchSig[0], vchSig.size());

@@ -6,21 +6,41 @@
 # Mac OS X makefile for blakecoin
 # Originally by Laszlo Hanyecz (solar@heliacal.net)
 
+# choose c and c++ libraries
+CC=clang
 CXX=llvm-g++
-DEPSDIR=/opt/local
+
+# standard library dirs brew and opt
+BREW_DEP_DIR = /usr/local/Cellar
+OPT_DEP_DIR = /usr/local/opt
+
+# You can configure these and point them to where ever your dependencies are.
+OPENSSL_DIR = $(BREW_DEP_DIR)/openssl/1.0.2j
+BOOST_DIR = $(OPT_DEP_DIR)/boost@1.55
+MINIUPNPC_DIR = $(BREW_DEP_DIR)/miniupnpc
+BERKELEY_DIR = $(BREW_DEP_DIR)/berkeley-db@4/4.8.30
+
 
 INCLUDEPATHS= \
  -I"$(CURDIR)" \
  -I"$(CURDIR)"/obj \
- -I"$(DEPSDIR)/include" \
- -I"$(DEPSDIR)/include/db48"
+ -I"$(OPENSSL_DIR)"/include \
+ -I"$(BERKELEY_DIR)"/include \
+ -I"$(MINIUPNPC_DIR)"/include \
+ -I"$(BOOST_DIR)"/include
 
 LIBPATHS= \
- -L"$(DEPSDIR)/lib" \
- -L"$(DEPSDIR)/lib/db48"
+ -L"$(OPENSSL_DIR)"/lib \
+ -L"$(BERKELEY_DIR)"/lib \
+ -L"$(MINIUPNPC_DIR)"/lib \
+ -L"$(BOOST_DIR)"/lib
+
 
 USE_UPNP:=1
 USE_IPV6:=1
+
+#set this before compiling
+STATIC = true
 
 LIBS= -dead_strip
 
@@ -29,16 +49,16 @@ TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 ifdef STATIC
 # Build STATIC if you are redistributing the blakecoind binary
 TESTLIBS += \
- $(DEPSDIR)/lib/libboost_unit_test_framework-mt.a
+ $(BOOST_DIR)/lib/libboost_unit_test_framework-mt.a
 LIBS += \
- $(DEPSDIR)/lib/db48/libdb_cxx-4.8.a \
- $(DEPSDIR)/lib/libboost_system-mt.a \
- $(DEPSDIR)/lib/libboost_filesystem-mt.a \
- $(DEPSDIR)/lib/libboost_program_options-mt.a \
- $(DEPSDIR)/lib/libboost_thread-mt.a \
- $(DEPSDIR)/lib/libboost_chrono-mt.a \
- $(DEPSDIR)/lib/libssl.a \
- $(DEPSDIR)/lib/libcrypto.a \
+ $(BERKELEY_DIR)/lib/libdb_cxx-4.8.a \
+ $(BOOST_DIR)/lib/libboost_system-mt.a \
+ $(BOOST_DIR)/lib/libboost_filesystem-mt.a \
+ $(BOOST_DIR)/lib/libboost_program_options-mt.a \
+ $(BOOST_DIR)/lib/libboost_thread-mt.a \
+ $(BOOST_DIR)/lib/libboost_chrono-mt.a \
+ $(OPENSSL_DIR)/lib/libssl.a \
+ $(OPENSSL_DIR)/lib/libcrypto.a \
  -lz
 else
 TESTLIBS += \
@@ -62,13 +82,16 @@ ifdef RELEASE
 # Compile for maximum compatibility and smallest size.
 # This requires that dependencies are compiled
 # the same way.
-CFLAGS = -mmacosx-version-min=10.5 -arch i386 -O3
+CFLAGS = -mmacosx-version-min=10.12 -O3
 else
-DEBUGFLAGS = -g
+DEBUGFLAGS = -g -v
 endif
 
 # ppc doesn't work because we don't support big-endian
-CFLAGS += -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter \
+CFLAGS += -Wall  \
+    $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+
+CXXFLAGS += -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter \
     $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 
 OBJS= \
@@ -111,7 +134,7 @@ endif
 ifneq (${USE_UPNP}, -)
 	DEFS += -DUSE_UPNP=$(USE_UPNP)
 ifdef STATIC
-	LIBS += $(DEPSDIR)/lib/libminiupnpc.a
+	LIBS += $(MINIUPNPC_DIR)/lib/libminiupnpc.a
 else
 	LIBS += -lminiupnpc
 endif
@@ -145,33 +168,33 @@ version.cpp: obj/build.h
 DEFS += -DHAVE_BUILD_INFO
 
 obj/%.o: %.cpp
-	$(CXX) -c $(CFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
 obj/%.o: %.c
-	$(CXX) -c $(CFLAGS) -fpermissive -MMD -MF $(@:%.o=%.d) -o $@ $<
+	$(CC) -c $(CFLAGS) -fpermissive -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
 blakecoind: $(OBJS:obj/%=obj/%)
-	$(CXX) $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
 
 TESTOBJS := $(patsubst test/%.cpp,obj-test/%.o,$(wildcard test/*.cpp))
 
 obj-test/%.o: test/%.cpp
-	$(CXX) -c $(TESTDEFS) $(CFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	$(CXX) -c $(TESTDEFS) $(CXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
 test_blakecoin: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
-	$(CXX) $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS) $(TESTLIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS) $(TESTLIBS)
 
 clean:
 	-rm -f blakecoind test_blakecoin
