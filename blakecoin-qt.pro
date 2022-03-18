@@ -80,8 +80,7 @@ QMAKE_CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -std=gnu++0x
 #win32:QMAKE_LFLAGS *= -Wl,--large-address-aware
 #win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
 # i686-w64-mingw32
-#win32:QMAKE_LFLAGS *= -static-libgcc -static-libstdc++ -static
-win32:QMAKE_LFLAGS *= -static-libgcc -static-libstdc++
+win32:QMAKE_LFLAGS *= -static-libgcc -static-libstdc++ -static -lpthread
 
 # use: qmake "USE_QRCODE=1"
 # libqrencode (http://fukuchi.org/works/qrencode/index.en.html) must be installed for support
