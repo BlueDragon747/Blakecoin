@@ -1,4 +1,6 @@
-Forked from Bitcoin reference wallet 0.15.2
+Forked from Bitcoin reference wallet 0.25.2
+
+WIP 0.25.2 still has couple of bugs once done Taproot will release on network and will update this code here
 
 Blakecoin Wallet
 
