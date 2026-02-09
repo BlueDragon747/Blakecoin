@@ -1,43 +1,117 @@
-(note: this is a temporary file, to be added-to by anybody, and deleted at
-release time)
+Bitcoin Core version *0.15.2* is now available from:
 
-0.8.6 changes
-=============
+  <https://bitcoincore.org/bin/bitcoin-core-0.15.2/>
 
-- Default block size increase for miners
-  (see https://gist.github.com/gavinandresen/7670433#086-accept-into-block)
+or
 
-- Remove the all-outputs-must-be-greater-than-CENT-to-qualify-as-free rule for relaying
-  (see https://gist.github.com/gavinandresen/7670433#086-relaying)
+  <https://bitcoin.org/bin/bitcoin-core-0.15.2/>
 
-- Lower maximum size for free transaction creation
-  (see https://gist.github.com/gavinandresen/7670433#086-wallet)
+This is a new minor version release, including various bugfixes and
+performance improvements, as well as updated translations.
 
-- OSX block chain database corruption fixes
-  - Update leveldb to 1.13
-  - Use fcntl with `F_FULLSYNC` instead of fsync on OSX
-  - Use native Darwin memory barriers
-  - Replace use of mmap in leveldb for improved reliability (only on OSX)
+Please report bugs using the issue tracker at GitHub:
 
-- Fix nodes forwarding transactions with empty vins and getting banned
+  <https://github.com/bitcoin/bitcoin/issues>
 
-- Network code performance and robustness improvements
+To receive security and update notifications, please subscribe to:
 
-- Additional debug.log logging for diagnosis of network problems, log timestamps by default
+  <https://bitcoincore.org/en/list/announcements/join/>
 
-- Fix Bitcoin-Qt startup crash when clicking dock icon on OSX 
+How to Upgrade
+==============
 
-- Fix memory leaks in CKey::SetCompactSignature() and Key::SignCompact()
+If you are running an older version, shut it down. Wait until it has completely
+shut down (which might take a few minutes for older versions), then run the 
+installer (on Windows) or just copy over `/Applications/Bitcoin-Qt` (on Mac)
+or `bitcoind`/`bitcoin-qt` (on Linux).
 
-- Fix rare GUI crash on send
+The first time you run version 0.15.0 or higher, your chainstate database will
+be converted to a new format, which will take anywhere from a few minutes to
+half an hour, depending on the speed of your machine.
 
-- Various small GUI, documentation and build fixes
+The file format of `fee_estimates.dat` changed in version 0.15.0. Hence, a
+downgrade from version 0.15 or upgrade to version 0.15 will cause all fee
+estimates to be discarded.
 
-Warning
---------
+Note that the block database format also changed in version 0.8.0 and there is no
+automatic upgrade code from before version 0.8 to version 0.15.0. Upgrading
+directly from 0.7.x and earlier without redownloading the blockchain is not supported.
+However, as usual, old wallet versions are still supported.
 
-- There have been frequent reports of users running out of virtual memory on 32-bit systems
-  during the initial sync.
-  Hence it is recommended to use a 64-bit executable if possible.
-  A 64-bit executable for Windows is planned for 0.9.
+Downgrading warning
+-------------------
 
+The chainstate database for this release is not compatible with previous
+releases, so if you run 0.15 and then decide to switch back to any
+older version, you will need to run the old release with the `-reindex-chainstate`
+option to rebuild the chainstate data structures in the old format.
+
+If your node has pruning enabled, this will entail re-downloading and
+processing the entire blockchain.
+
+Compatibility
+==============
+
+Bitcoin Core is extensively tested on multiple operating systems using
+the Linux kernel, macOS 10.8+, and Windows Vista and later. Windows XP is not supported.
+
+Bitcoin Core should also work on most other Unix-like systems but is not
+frequently tested on them.
+
+
+Notable changes
+===============
+
+Denial-of-Service vulnerability CVE-2018-17144
+-------------------------------
+
+A denial-of-service vulnerability exploitable by miners has been discovered in
+Bitcoin Core versions 0.14.0 up to 0.16.2. It is recommended to upgrade any of
+the vulnerable versions to 0.15.2 or 0.16.3 as soon as possible.
+
+0.15.2 Change log
+=================
+
+### Build system
+
+- #11995 `9bb1a16` depends: Fix Qt build with XCode 9.2(fanquake)
+- #12946 `93b9a61` depends: Fix Qt build with XCode 9.3(fanquake)
+- #13544 `9fd3e00` depends: Update Qt download url (fanquake)
+- #11847 `cb7ef31` Make boost::multi_index comparators const (sdaftuar)
+
+### Consensus
+- #14247 `4b8a3f5` Fix crash bug with duplicate inputs within a transaction (TheBlueMatt, sdaftuar)
+ 
+### RPC
+- #11676 `7af2457` contrib/init: Update openrc-run filename (Luke Dashjr)
+- #11277 `7026845` Fix uninitialized URI in batch RPC requests (Russell Yanofsky)
+ 
+### Wallet
+- #11289 `3f1db56` Wrap dumpwallet warning and note scripts aren't dumped (MeshCollider)
+- #11289 `42ea47d` Add wallet backup text to import*, add* and dumpwallet RPCs (MeshCollider)
+- #11590 `6372a75` [Wallet] always show help-line of wallet encryption calls (Jonas Schnelli)
+
+### bitcoin-tx
+
+- #11554 `a69cc07` Sanity-check script sizes in bitcoin-tx (TheBlueMatt)
+
+### Tests
+- #11277 `3a6cdd4` Add test for multiwallet batch RPC calls (Russell Yanofsky)
+- #11647 `1c8c7f8` Add missing batch rpc calls to python coverage logs (Russell Yanofsky)
+- #11277 `1036c43` Add missing multiwallet rpc calls to python coverage logs (Russell Yanofsky)
+- #11277 `305f768` Limit AuthServiceProxyWrapper.\_\_getattr\_\_ wrapping (Russell Yanofsky)
+- #11277 `2eea279` Make AuthServiceProxy.\_batch method usable (Russell Yanofsky)
+
+Credits
+=======
+
+Thanks to everyone who directly contributed to this release:
+
+- fanquake
+- Jonas Schnelli
+- Luke Dashjr
+- Matt Corallo
+- MeshCollider
+- Russell Yanofsky
+- Suhas Daftuar
+- Wladimir J. van der Laan
