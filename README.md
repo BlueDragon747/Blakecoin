@@ -2,6 +2,8 @@ Forked from Bitcoin reference wallet 0.15.2
 
 Blakecoin Wallet
 
+Pre-Release Initial backport to 0.15.2 full sync but wire change/protocol changes effect p2p to 0.8.6, old wallet bootstrap and WiF compatible minor ui/ux changes todo
+
 https://www.blakecoin.org
 
 Blake-256(optimized) is faster than Scrypt, SHA-256D, Keccak, Groestl
