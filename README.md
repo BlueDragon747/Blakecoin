@@ -1,4 +1,4 @@
-Forked from Bitcoin reference wallet 0.8.6
+Forked from Bitcoin reference wallet 0.15.2
 
 Blakecoin Wallet
 
@@ -18,11 +18,8 @@ anyone, anywhere in the world. Blakecoin uses peer-to-peer technology to operate
 with no central authority: managing transactions and issuing money are carried
 out collectively by the network.
 
-Ubuntu 18.04 dependancies that are used on the Linux build machine:
+Ubuntu 20.04 dependancies that are used on the Linux build machine:
 
-wget git curl build-essential libssl-dev libboost-all-dev libminiupnpc-dev libdb4.8-dev libdb4.8++-dev
-
-Building with Boost 1.71+
 
 License
 
