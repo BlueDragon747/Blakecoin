@@ -776,23 +776,58 @@ mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/plugins" \
 
 cp "$QT_BIN" "$APPDIR/usr/bin/'"$QT_NAME"'"
 
-# Bundle Qt plugins
-cp -r /usr/lib/x86_64-linux-gnu/qt5/plugins/platforms "$APPDIR/usr/plugins/" 2>/dev/null || true
-cp -r /usr/lib/x86_64-linux-gnu/qt5/plugins/imageformats "$APPDIR/usr/plugins/" 2>/dev/null || true
+# Bundle Qt plugins (dynamic discovery like lib/appimage.sh)
+QT_PLUGIN_DIR=""
+for p in /usr/lib/x86_64-linux-gnu/qt5/plugins /usr/lib/qt5/plugins /usr/lib64/qt5/plugins; do
+    [ -d "$p" ] && QT_PLUGIN_DIR="$p" && break
+done
+if [ -n "$QT_PLUGIN_DIR" ]; then
+    cp -r "$QT_PLUGIN_DIR/platforms" "$APPDIR/usr/plugins/" 2>/dev/null || true
+    for plugin_type in platformthemes platforminputcontexts imageformats; do
+        if [ -d "$QT_PLUGIN_DIR/$plugin_type" ]; then
+            mkdir -p "$APPDIR/usr/plugins/$plugin_type"
+            cp -r "$QT_PLUGIN_DIR/$plugin_type/"* "$APPDIR/usr/plugins/$plugin_type/" 2>/dev/null || true
+        fi
+    done
+fi
 
 # Bundle shared libraries (ldd-based)
-for lib in $(ldd "$APPDIR/usr/bin/'"$QT_NAME"'" | grep "=> /" | awk "{print \$3}"); do
-    case "$lib" in
-        /lib/x86_64-linux-gnu/libc.so*|/lib/x86_64-linux-gnu/libdl.so*|\
-        /lib/x86_64-linux-gnu/libpthread.so*|/lib/x86_64-linux-gnu/libm.so*|\
-        /lib/x86_64-linux-gnu/librt.so*|/lib/x86_64-linux-gnu/ld-linux*.so*|\
-        */libfontconfig.so*|*/libfreetype.so*)
-            # Skip system libs and font libs (old versions crash on variable-weight fonts)
-            ;;
-        *)
-            cp -n "$lib" "$APPDIR/usr/lib/" 2>/dev/null || true
-            ;;
-    esac
+echo ">>> Bundling shared libraries..."
+for bin in "$APPDIR"/usr/bin/*; do
+    [ -f "$bin" ] || continue
+    ldd "$bin" 2>/dev/null | grep "=>" | awk "{print \$3}" | grep -v "^\$" | while read -r lib; do
+        [ -z "$lib" ] || [ ! -f "$lib" ] && continue
+        lib_name=$(basename "$lib")
+        case "$lib_name" in
+            libc.so*|libdl.so*|libpthread.so*|libm.so*|librt.so*|libgcc_s.so*|libstdc++.so*|ld-linux*)
+                # Skip glibc/core runtime — always present on host
+                ;;
+            libfontconfig.so*|libfreetype.so*)
+                # DO NOT bundle — old versions crash on variable-weight fonts
+                ;;
+            *)
+                cp -nL "$lib" "$APPDIR/usr/lib/" 2>/dev/null || true
+                ;;
+        esac
+    done
+done
+
+# Bundle Qt plugin dependencies
+echo ">>> Bundling Qt plugin dependencies..."
+find "$APPDIR/usr/plugins" -name "*.so" 2>/dev/null | while read -r plugin; do
+    ldd "$plugin" 2>/dev/null | grep "=>" | awk "{print \$3}" | grep -v "^\$" | while read -r plib; do
+        [ -z "$plib" ] || [ ! -f "$plib" ] && continue
+        plib_name=$(basename "$plib")
+        case "$plib_name" in
+            libc.so*|libdl.so*|libpthread.so*|libm.so*|librt.so*|libgcc_s.so*|libstdc++.so*|ld-linux*)
+                ;;
+            libfontconfig.so*|libfreetype.so*)
+                ;;
+            *)
+                cp -nL "$plib" "$APPDIR/usr/lib/" 2>/dev/null || true
+                ;;
+        esac
+    done
 done
 
 # Remove GTK3-related libs (segfault with newer host themes)
@@ -801,26 +836,62 @@ rm -f "$APPDIR/usr/lib/libatk-bridge-2.0.so"* "$APPDIR/usr/lib/libatspi.so"*
 rm -f "$APPDIR/usr/lib/libepoxy.so"*
 rm -f "$APPDIR/usr/plugins/platformthemes/libqgtk3.so" 2>/dev/null || true
 
+# Create qt.conf to tell Qt where to find plugins
+cat > "$APPDIR/usr/bin/qt.conf" << '\''QTCONF'\''
+[Paths]
+Plugins = ../plugins
+QTCONF
+
 # GSettings schema (cross-Ubuntu compatibility)
 # Why: antialiasing key moved to .deprecated schema in newer GNOME; apps crash without it
-cat > "$APPDIR/usr/share/glib-2.0/schemas/org.gnome.settings-daemon.plugins.xsettings.gschema.xml" << '\''SCHEMA_EOF'\''
+SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
+cat > "$SCHEMA_DIR/org.gnome.settings-daemon.plugins.xsettings.gschema.xml" << '\''SCHEMA_EOF'\''
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.settings-daemon.plugins.xsettings" path="/org/gnome/settings-daemon/plugins/xsettings/">
-    <key name="antialiasing" type="s">
-      <default>'\'''\''grayscale'\'''\''</default>
-      <summary>Antialiasing</summary>
+  <enum id="org.gnome.settings-daemon.GsdFontAntialiasingMode">
+    <value nick="none" value="0"/>
+    <value nick="grayscale" value="1"/>
+    <value nick="rgba" value="2"/>
+  </enum>
+  <enum id="org.gnome.settings-daemon.GsdFontHinting">
+    <value nick="none" value="0"/>
+    <value nick="slight" value="1"/>
+    <value nick="medium" value="2"/>
+    <value nick="full" value="3"/>
+  </enum>
+  <enum id="org.gnome.settings-daemon.GsdFontRgbaOrder">
+    <value nick="rgba" value="0"/>
+    <value nick="rgb" value="1"/>
+    <value nick="bgr" value="2"/>
+    <value nick="vrgb" value="3"/>
+    <value nick="vbgr" value="4"/>
+  </enum>
+  <schema gettext-domain="gnome-settings-daemon" id="org.gnome.settings-daemon.plugins.xsettings" path="/org/gnome/settings-daemon/plugins/xsettings/">
+    <key name="disabled-gtk-modules" type="as">
+      <default>[]</default>
     </key>
-    <key name="hinting" type="s">
-      <default>'\'''\''slight'\'''\''</default>
-      <summary>Hinting</summary>
+    <key name="enabled-gtk-modules" type="as">
+      <default>[]</default>
+    </key>
+    <key type="a{sv}" name="overrides">
+      <default>{}</default>
+    </key>
+    <key name="antialiasing" enum="org.gnome.settings-daemon.GsdFontAntialiasingMode">
+      <default>'\''grayscale'\''</default>
+    </key>
+    <key name="hinting" enum="org.gnome.settings-daemon.GsdFontHinting">
+      <default>'\''slight'\''</default>
+    </key>
+    <key name="rgba-order" enum="org.gnome.settings-daemon.GsdFontRgbaOrder">
+      <default>'\''rgb'\''</default>
     </key>
   </schema>
 </schemalist>
 SCHEMA_EOF
-glib-compile-schemas "$APPDIR/usr/share/glib-2.0/schemas/" 2>/dev/null || true
+glib-compile-schemas "$SCHEMA_DIR" 2>/dev/null || echo "WARNING: glib-compile-schemas failed"
 
 # Minimal OpenSSL config (avoids host OpenSSL 3.0 conflicts)
+mkdir -p "$APPDIR/etc"
 cat > "$APPDIR/etc/openssl.cnf" << '\''SSL_EOF'\''
 openssl_conf = openssl_init
 [openssl_init]
@@ -831,39 +902,84 @@ system_default = system_default_sect
 MinProtocol = TLSv1.2
 SSL_EOF
 
-# Desktop file
-cat > "$APPDIR/'"$COIN_NAME_UPPER"'.desktop" << '\''DESKTOP_EOF'\''
+# Desktop file (in AppDir root + usr/share/applications)
+cat > "$APPDIR/'"$COIN_NAME"'.desktop" << '\''DESKTOP_EOF'\''
 [Desktop Entry]
 Type=Application
-Name=Blakecoin Qt
+Name='"$COIN_NAME_UPPER"'
+Comment='"$COIN_NAME_UPPER"' Cryptocurrency Wallet
 Exec='"$QT_NAME"'
 Icon='"$COIN_NAME"'
-Categories=Finance;
+Categories=Network;Finance;
+Terminal=false
+StartupWMClass='"$QT_NAME"'
 DESKTOP_EOF
+mkdir -p "$APPDIR/usr/share/applications"
+cp "$APPDIR/'"$COIN_NAME"'.desktop" "$APPDIR/usr/share/applications/"
 
 # Icon (use existing or create placeholder)
+ICON_DIR="$APPDIR/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$ICON_DIR"
 if [ -f src/qt/res/icons/bitcoin.png ]; then
-    cp src/qt/res/icons/bitcoin.png "$APPDIR/'"$COIN_NAME"'.png"
+    cp src/qt/res/icons/bitcoin.png "$ICON_DIR/'"$COIN_NAME"'.png"
 else
-    # Create a simple 256x256 placeholder
-    convert -size 256x256 xc:blue "$APPDIR/'"$COIN_NAME"'.png" 2>/dev/null || \
-        touch "$APPDIR/'"$COIN_NAME"'.png"
+    # Minimal 1x1 placeholder PNG
+    echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > "$ICON_DIR/'"$COIN_NAME"'.png"
 fi
+# Symlink in root (required by AppImage spec)
+ln -sf "usr/share/icons/hicolor/256x256/apps/'"$COIN_NAME"'.png" "$APPDIR/'"$COIN_NAME"'.png"
 
-# AppRun script
+# AppRun script with desktop integration
 cat > "$APPDIR/AppRun" << '\''APPRUN_EOF'\''
 #!/bin/bash
 APPDIR="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$LD_LIBRARY_PATH"
 export PATH="$APPDIR/usr/bin:$PATH"
+
+# Use bundled GSettings schemas
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
 export GSETTINGS_BACKEND=memory
 export GIO_MODULE_DIR="$APPDIR/usr/lib/gio/modules"
-export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
+
+# Qt plugin paths
+if [ -d "$APPDIR/usr/plugins" ]; then
+    export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
+fi
+
+# Force X11 for older Qt builds; use Fusion style (GTK3 theme plugin removed)
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
 export QT_STYLE_OVERRIDE=Fusion
 export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+# Prevent host OpenSSL 3.0 config from interfering
 export OPENSSL_CONF="$APPDIR/etc/openssl.cnf"
+
+# Desktop integration — register icon so GNOME dock shows coin logo
+_ICON_NAME="'"$COIN_NAME"'"
+_QT_NAME="'"$QT_NAME"'"
+_WM_CLASS="'"$COIN_NAME_UPPER"'-Qt"
+_COIN_NAME="'"$COIN_NAME_UPPER"'"
+_APPIMAGE_PATH="${APPIMAGE:-$0}"
+_ICON_SRC="$APPDIR/usr/share/icons/hicolor/256x256/apps/${_ICON_NAME}.png"
+_ICON_DST="$HOME/.local/share/icons/hicolor/256x256/apps/${_ICON_NAME}.png"
+_DESKTOP_DST="$HOME/.local/share/applications/${_QT_NAME}.desktop"
+
+if [ -f "$_ICON_SRC" ]; then
+    mkdir -p "$(dirname "$_ICON_DST")" "$(dirname "$_DESKTOP_DST")" 2>/dev/null
+    cp "$_ICON_SRC" "$_ICON_DST" 2>/dev/null
+    cat > "$_DESKTOP_DST" <<_DEOF
+[Desktop Entry]
+Type=Application
+Name=$_COIN_NAME
+Icon=$_ICON_DST
+Exec=$_APPIMAGE_PATH
+Terminal=false
+Categories=Finance;Network;
+StartupWMClass=$_WM_CLASS
+_DEOF
+    chmod +x "$_DESKTOP_DST" 2>/dev/null
+fi
+
 exec "$APPDIR/usr/bin/'"$QT_NAME"'" "$@"
 APPRUN_EOF
 chmod +x "$APPDIR/AppRun"
@@ -1246,6 +1362,43 @@ build_native_linux_direct() {
     fi
 
     write_build_info "$output_dir" "native-linux" "$target" "$os_version"
+
+    # Install .desktop launcher + icon for Activities search (Linux only, Qt builds)
+    if [[ "$target" == "qt" || "$target" == "both" ]] && [[ -f "$output_dir/qt/$QT_NAME" ]]; then
+        info "Installing desktop launcher and icon..."
+        local icon_dir="$HOME/.local/share/icons/hicolor/256x256/apps"
+        local app_dir="$HOME/.local/share/applications"
+        mkdir -p "$icon_dir" "$app_dir"
+
+        # Copy coin icon from source tree
+        local icon_src=""
+        for search in "$SCRIPT_DIR/src/qt/res/icons/bitcoin.png" \
+                      "$SCRIPT_DIR/src/qt/res/icons/${COIN_NAME}.png"; do
+            [[ -f "$search" ]] && icon_src="$search" && break
+        done
+        if [[ -n "$icon_src" ]]; then
+            cp "$icon_src" "$icon_dir/${QT_NAME}.png"
+        fi
+
+        # Create .desktop file
+        local qt_path
+        qt_path="$(readlink -f "$output_dir/qt/$QT_NAME")"
+        cat > "$app_dir/${QT_NAME}.desktop" << DESK_EOF
+[Desktop Entry]
+Type=Application
+Name=$COIN_NAME_UPPER Qt
+Comment=$COIN_NAME_UPPER Cryptocurrency Wallet
+Exec=$qt_path
+Icon=${QT_NAME}
+Terminal=false
+Categories=Finance;Network;
+StartupWMClass=${QT_NAME}
+DESK_EOF
+        chmod +x "$app_dir/${QT_NAME}.desktop"
+        gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+        update-desktop-database "$app_dir" 2>/dev/null || true
+        success "Desktop launcher installed — search '$COIN_NAME_UPPER' in Activities"
+    fi
 
     echo ""
     echo "============================================"
