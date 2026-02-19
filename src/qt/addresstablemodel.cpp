@@ -6,6 +6,7 @@
 #include "wallet.h"
 #include "base58.h"
 
+#include <stdexcept>
 #include <QFont>
 
 const QString AddressTableModel::Send = "S";
@@ -353,12 +354,21 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
             return QString();
         }
         CPubKey newKey;
-        if(!wallet->GetKeyFromPool(newKey, true))
-        {
+        // Wrap in try-catch: GetKeyFromPool can throw runtime_error on large
+        // encrypted wallets (TopUpKeyPool/GenerateNewKey), and unhandled C++
+        // exceptions crash Qt with "Qt has caught an exception"
+        try {
+            if(!wallet->GetKeyFromPool(newKey, true))
+            {
+                editStatus = KEY_GENERATION_FAILURE;
+                return QString();
+            }
+            strAddress = CBitcoinAddress(newKey.GetID()).ToString();
+        } catch (const std::exception& e) {
+            printf("GetKeyFromPool exception: %s\n", e.what());
             editStatus = KEY_GENERATION_FAILURE;
             return QString();
         }
-        strAddress = CBitcoinAddress(newKey.GetID()).ToString();
     }
     else
     {
