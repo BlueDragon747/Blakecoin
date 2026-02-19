@@ -1,6 +1,9 @@
 # Blakecoin
 
-Blakecoin is a cryptocurrency using the Blake-256 hashing algorithm — a SHA-3 candidate that is faster than Scrypt, SHA-256D, Keccak, and Groestl. Forked from Bitcoin 0.8.6, Blakecoin uses optimized 8-round Blake-256 with reduced double-hashing for efficiency while maintaining proven ECDSA security.
+- A cryptocurrency using the **Blake-256** hashing algorithm — a SHA-3 candidate faster than Scrypt, SHA-256D, Keccak, and Groestl
+- Forked from **Bitcoin 0.8.6**
+- Uses optimized 8-round Blake-256 with reduced double-hashing for efficiency
+- Maintains proven ECDSA security
 
 ## Quick Start (Ubuntu 18.04)
 
@@ -13,7 +16,10 @@ sudo apt install build-essential libssl-dev libboost-all-dev \
 ./build.sh --native --both
 ```
 
-This builds both the daemon (`blakecoind`) and Qt wallet (`blakecoin-qt`) natively on Ubuntu 18.04. Binaries go to `outputs/native/`. For other Ubuntu versions, use Docker or AppImage. See below for macOS, Windows, and other build options.
+- Builds both the daemon (`blakecoind`) and Qt wallet (`blakecoin-qt`) natively on Ubuntu 18.04
+- Binaries go to `outputs/native/`
+- For other Ubuntu versions, use Docker or AppImage
+- See below for macOS, Windows, and other build options
 
 ## Build Options
 
@@ -120,7 +126,11 @@ Then build:
 
 Uses `sidgrip/mxe-base:latest` Docker image with MXE cross-compiler. Everything (Qt, Boost, OpenSSL, etc.) is statically linked into one self-contained exe.
 
-> **Why the difference?** MXE compiles all dependencies from source with the same toolchain, so everything links statically into one binary. MSYS2's static Qt5 package uses a different C runtime (UCRT) than the MinGW64 toolchain (MSVCRT), making fully static linking impossible. The native build auto-bundles all required DLLs in the output folder instead.
+> **Why the difference?**
+>
+> - MXE compiles all dependencies from source with the same toolchain, so everything links statically into one binary
+> - MSYS2's static Qt5 package uses a different C runtime (UCRT) than the MinGW64 toolchain (MSVCRT), making fully static linking impossible
+> - The native build auto-bundles all required DLLs in the output folder instead
 
 ## Output Structure
 
@@ -154,7 +164,12 @@ Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker`
 
 Local builds are cached by Docker — subsequent builds are instant.
 
-> **macOS `--build-docker` note:** The macOS cross-compile Dockerfile requires an Apple SDK tarball that cannot be redistributed. Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`. Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`. Using `--pull-docker` does not require the SDK — it is already included in the prebuilt Docker Hub image.
+> **macOS `--build-docker` note:**
+>
+> - The macOS cross-compile Dockerfile requires an Apple SDK tarball that **cannot be redistributed**
+> - Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`
+> - Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`
+> - Using `--pull-docker` does **not** require the SDK — it is already included in the prebuilt Docker Hub image
 
 ## Network Info
 
