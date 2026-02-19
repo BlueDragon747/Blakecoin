@@ -1,0 +1,7 @@
+#!/bin/sh
+# xcodebuild shim for osxcross cross-compilation environment
+case "$*" in
+    *-license*) exit 0 ;;
+    *-version*) echo "Xcode 26.2"; echo "Build version 26C31" ;;
+    *) echo "Xcode 26.2"; echo "Build version 26C31" ;;
+esac
