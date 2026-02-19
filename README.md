@@ -5,6 +5,14 @@
 - Uses optimized 8-round Blake-256 with reduced double-hashing for efficiency
 - Maintains proven ECDSA security
 
+| Network Info | |
+|---|---|
+| Algorithm | Blake-256 (8 rounds) |
+| Block time | 2 minutes |
+| Default port | 8333 |
+| RPC port | 8332 |
+| Max supply | 7,000,000,000 BLC |
+
 ## Quick Start (Ubuntu 18.04)
 
 ```bash
@@ -170,16 +178,6 @@ Local builds are cached by Docker — subsequent builds are instant.
 > - Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`
 > - Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`
 > - Using `--pull-docker` does **not** require the SDK — it is already included in the prebuilt Docker Hub image
-
-## Network Info
-
-| | |
-|---|---|
-| Algorithm | Blake-256 (8 rounds) |
-| Block time | 2 minutes |
-| Default port | 8333 |
-| RPC port | 8332 |
-| Max supply | 7,000,000,000 BLC |
 
 ## Multi-Coin Builder
 
