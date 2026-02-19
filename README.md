@@ -154,7 +154,8 @@ Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker`
 
 Local builds are cached by Docker — subsequent builds are instant.
 
-> **macOS `--build-docker` note:** The macOS cross-compile Dockerfile requires an Apple SDK tarball that cannot be redistributed. Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`. Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`. Using `--pull-docker` does not require the SDK — it is already included in the prebuilt Docker Hub image.
+> **macOS `--build-docker` note:** The macOS cross-compile Dockerfile requires an Apple SDK tarball that cannot be redistributed. Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`.
+> Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`. Using `--pull-docker` does not require the SDK — it is already included in the prebuilt Docker Hub image.
 
 ## Network Info
 
