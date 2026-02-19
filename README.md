@@ -26,6 +26,7 @@ sudo apt install build-essential libssl-dev libboost-all-dev \
 
 - Builds both the daemon (`blakecoind`) and Qt wallet (`blakecoin-qt`) natively on Ubuntu 18.04
 - Binaries go to `outputs/native/`
+- On Linux, Qt builds automatically install a `.desktop` launcher and icon so the wallet appears in Activities search
 - For other Ubuntu versions, use Docker or AppImage
 - See below for macOS, Windows, and other build options
 
