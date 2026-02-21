@@ -303,12 +303,32 @@ export PATH="/opt/mxe/usr/x86_64-w64-mingw32.static/qt5/bin:$PATH"
 # Why: miniupnpc ships a demo program with its own main(); conflicts with wallet binary
 x86_64-w64-mingw32.static-ar d '"$MXE_SYSROOT"'/lib/libminiupnpc.a upnpc.c.obj 2>/dev/null || true
 
-echo ">>> Cloning repository..."
-cd /build
-git clone --depth=1 --branch='"$REPO_BRANCH"' '"$REPO_URL"' '"$COIN_NAME"'
-cd '"$COIN_NAME"'
+echo ">>> Cloning from '"$REPO_URL"'..."
+git clone --depth 1 -b '"$REPO_BRANCH"' '"$REPO_URL"' /build/'"$COIN_NAME"'
+cd /build/'"$COIN_NAME"'
 
 echo ">>> Patching .pro file..."
+
+# Fix .rc icon references for Windows resource compiler (case-sensitive on Linux)
+# Approach from tested lib/windows.sh: only lowercase if lowercase file exists
+if [ -f src/qt/res/bitcoin-qt.rc ]; then
+    # Fix wrong coin name in .rc (e.g. lithium .rc referencing Photon icons)
+    for ico_ref in $(grep -oP "\"icons/[^\"]+\\.ico\"" src/qt/res/bitcoin-qt.rc | tr -d "\""); do
+        ico_lower=$(echo "$ico_ref" | tr "[:upper:]" "[:lower:]")
+        if [ "$ico_ref" != "$ico_lower" ] && [ -f "src/qt/res/$ico_lower" ]; then
+            sed -i "s|$ico_ref|$ico_lower|g" src/qt/res/bitcoin-qt.rc
+        fi
+    done
+fi
+
+# Fix GCC uninitialized warning treated as error in MXE cross-compile
+sed -i "s|QMAKE_CXXFLAGS_WARN_ON = .*|QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter -Wno-maybe-uninitialized -Wstack-protector|" *.pro
+
+# Fix Boost.Asio get_io_service() removed in Boost 1.70+ (MXE ships newer Boost)
+if grep -q "get_io_service" src/bitcoinrpc.cpp 2>/dev/null; then
+    sed -i "s|resolver(stream\\.get_io_service())|resolver((boost::asio::io_context\\&)stream.get_executor().context())|g" src/bitcoinrpc.cpp
+    sed -i "s|acceptor->get_io_service()|((boost::asio::io_context\\&)acceptor->get_executor().context())|g" src/bitcoinrpc.cpp
+fi
 
 # Fix qmake conditional syntax: USE_UPNP:=1 -> USE_UPNP=1
 sed -i "s/USE_UPNP:=1/USE_UPNP=1/" *.pro
@@ -415,7 +435,130 @@ ls -lh release/ 2>/dev/null || ls -lh *.exe 2>/dev/null || true
     fi
 
     if [[ "$target" == "daemon" || "$target" == "both" ]]; then
-        warn "Windows daemon build not yet implemented (Blakecoin uses qmake, no makefile.unix for Windows)"
+        info "Building daemon for Windows..."
+        local daemon_container="win-${COIN_NAME}-daemon"
+        docker rm -f "$daemon_container" 2>/dev/null || true
+
+        docker create \
+            --name "$daemon_container" \
+            "$DOCKER_WINDOWS" \
+            /bin/bash -c '
+set -e
+
+export PATH="/opt/mxe/usr/bin:$PATH"
+MXE_TARGET="x86_64-w64-mingw32.static"
+
+# Fix miniupnpc: remove upnpc.c.obj (contains main())
+${MXE_TARGET}-ar d '"$MXE_SYSROOT"'/lib/libminiupnpc.a upnpc.c.obj 2>/dev/null || true
+
+echo ">>> Cloning from '"$REPO_URL"'..."
+git clone --depth 1 -b '"$REPO_BRANCH"' '"$REPO_URL"' /build/'"$COIN_NAME"'
+cd /build/'"$COIN_NAME"'
+
+echo ">>> Patching source files..."
+
+# Fix pid_t redefinition (mingw-w64 provides it)
+sed -i "s|typedef int pid_t;|// pid_t provided by mingw-w64|" src/util.h
+
+# Fix SOCKET typedef — only define on non-Windows
+sed -i "s|typedef u_int SOCKET;|#ifndef WIN32\ntypedef u_int SOCKET;\n#endif|" src/compat.h
+
+# Add missing boost/bind.hpp includes
+for f in src/qt/clientmodel.cpp src/qt/walletmodel.cpp; do
+    if [ -f "$f" ] && ! grep -q "boost/bind.hpp" "$f"; then
+        sed -i "1a #include <boost/bind.hpp>" "$f"
+    fi
+done
+
+# Fix Boost.Asio get_io_service() removed in Boost 1.70+
+if grep -q "get_io_service" src/bitcoinrpc.cpp 2>/dev/null; then
+    sed -i "s|resolver(stream\.get_io_service())|resolver((boost::asio::io_context\&)stream.get_executor().context())|g" src/bitcoinrpc.cpp
+    sed -i "s|acceptor->get_io_service()|((boost::asio::io_context\&)acceptor->get_executor().context())|g" src/bitcoinrpc.cpp
+fi
+
+echo ">>> Patching makefile.unix for Windows cross-compile..."
+
+# Remove GNU ld flags not supported by mingw
+sed -i "s/-Wl,-B\$(LMODE)//g; s/-Wl,-B\$(LMODE2)//g" src/makefile.unix 2>/dev/null || true
+sed -i "s/-Wl,-z,relro//g; s/-Wl,-z,now//g" src/makefile.unix 2>/dev/null || true
+sed -i "s/-l dl//g" src/makefile.unix 2>/dev/null || true
+sed -i "s/-l pthread//g" src/makefile.unix 2>/dev/null || true
+# Append Windows system libs
+echo "LIBS += -l ws2_32 -l mswsock -l shlwapi -l crypt32 -l iphlpapi -l kernel32" >> src/makefile.unix
+
+echo ">>> Writing LevelDB build_config.mk..."
+
+echo "#!/bin/sh" > src/leveldb/build_detect_platform
+echo "touch \$1" >> src/leveldb/build_detect_platform
+chmod +x src/leveldb/build_detect_platform
+
+cat > src/leveldb/build_config.mk << '\''LEVELDB_EOF'\''
+SOURCES=db/builder.cc db/c.cc db/db_impl.cc db/db_iter.cc db/dbformat.cc db/filename.cc db/log_reader.cc db/log_writer.cc db/memtable.cc db/repair.cc db/table_cache.cc db/version_edit.cc db/version_set.cc db/write_batch.cc table/block.cc table/block_builder.cc table/filter_block.cc table/format.cc table/iterator.cc table/merger.cc table/table.cc table/table_builder.cc table/two_level_iterator.cc util/arena.cc util/bloom.cc util/cache.cc util/coding.cc util/comparator.cc util/crc32c.cc util/env.cc util/env_win.cc util/filter_policy.cc util/hash.cc util/histogram.cc util/logging.cc util/options.cc util/status.cc port/port_win.cc
+MEMENV_SOURCES=helpers/memenv/memenv.cc
+CC=x86_64-w64-mingw32.static-gcc
+CXX=x86_64-w64-mingw32.static-g++
+AR=x86_64-w64-mingw32.static-ar
+PLATFORM=OS_WINDOWS
+PLATFORM_LDFLAGS=-lshlwapi
+PLATFORM_LIBS=
+PLATFORM_CCFLAGS= -fno-builtin-memcmp -D_REENTRANT -DOS_WIN -DLEVELDB_PLATFORM_WINDOWS -DWINVER=0x0500 -D__USE_MINGW_ANSI_STDIO=1 -DLEVELDB_IS_BIG_ENDIAN=0
+PLATFORM_CXXFLAGS= -fno-builtin-memcmp -D_REENTRANT -DOS_WIN -DLEVELDB_PLATFORM_WINDOWS -DWINVER=0x0500 -D__USE_MINGW_ANSI_STDIO=1 -DLEVELDB_IS_BIG_ENDIAN=0
+LEVELDB_EOF
+
+# Check if Windows port files exist; fall back to posix if not
+if [ ! -f src/leveldb/port/port_win.cc ] || [ ! -f src/leveldb/util/env_win.cc ]; then
+    sed -i "s|port/port_win.cc|port/port_posix.cc|" src/leveldb/build_config.mk
+    sed -i "s|util/env_win.cc|util/env_posix.cc|" src/leveldb/build_config.mk
+    sed -i "s/OS_WINDOWS/OS_LINUX/g; s/LEVELDB_PLATFORM_WINDOWS/LEVELDB_PLATFORM_POSIX/g" src/leveldb/build_config.mk
+fi
+
+echo ">>> Building daemon with makefile.unix..."
+cd src
+make -f makefile.unix \
+    CC=${MXE_TARGET}-gcc \
+    CXX=${MXE_TARGET}-g++ \
+    AR=${MXE_TARGET}-ar \
+    RANLIB=${MXE_TARGET}-ranlib \
+    STRIP=${MXE_TARGET}-strip \
+    LINK=${MXE_TARGET}-g++ \
+    BOOST_INCLUDE_PATH=/opt/compat/include \
+    BOOST_LIB_PATH=/opt/compat/lib \
+    BDB_INCLUDE_PATH=/opt/compat/include \
+    BDB_LIB_PATH=/opt/compat/lib \
+    OPENSSL_INCLUDE_PATH=/opt/compat/include \
+    OPENSSL_LIB_PATH=/opt/compat/lib \
+    MINIUPNPC_INCLUDE_PATH='"$MXE_SYSROOT"'/include \
+    MINIUPNPC_LIB_PATH='"$MXE_SYSROOT"'/lib \
+    CXXFLAGS="-I/opt/compat/include -DWIN32 -DMINIUPNP_STATICLIB -DBOOST_BIND_GLOBAL_PLACEHOLDERS -Wno-maybe-uninitialized" \
+    LDFLAGS="-L/opt/compat/lib -L'"$MXE_SYSROOT"'/lib -static" \
+    TARGET_PLATFORM=windows \
+    USE_UPNP=1 \
+    -j'"$jobs"'
+
+echo ">>> Stripping daemon..."
+${MXE_TARGET}-strip '"$DAEMON_NAME"'.exe 2>/dev/null || ${MXE_TARGET}-strip '"$DAEMON_NAME"' 2>/dev/null || true
+# Rename to .exe if not already
+[ ! -f '"$DAEMON_NAME"'.exe ] && [ -f '"$DAEMON_NAME"' ] && mv '"$DAEMON_NAME"' '"$DAEMON_NAME"'.exe
+
+echo ">>> Daemon build complete!"
+ls -lh '"$DAEMON_NAME"'.exe 2>/dev/null || ls -lh '"$DAEMON_NAME"' 2>/dev/null || true
+'
+
+        info "Starting daemon build container: $daemon_container"
+        docker start -a "$daemon_container"
+
+        info "Extracting ${DAEMON_NAME}.exe..."
+        if docker cp "$daemon_container:/build/$COIN_NAME/src/${DAEMON_NAME}.exe" "$output_dir/daemon/${DAEMON_NAME}.exe" 2>/dev/null ||
+           docker cp "$daemon_container:/build/$COIN_NAME/src/${DAEMON_NAME}" "$output_dir/daemon/${DAEMON_NAME}.exe" 2>/dev/null; then
+            success "Windows daemon extracted to $output_dir/daemon/"
+            ls -lh "$output_dir/daemon/${DAEMON_NAME}.exe"
+        else
+            error "Could not find daemon .exe in container"
+            docker exec "$daemon_container" find /build/$COIN_NAME/src -name "*.exe" -o -name "$DAEMON_NAME" 2>/dev/null || true
+        fi
+
+        write_build_info "$output_dir/daemon" "windows-cross-compile" "daemon" "Docker: $DOCKER_WINDOWS (MXE)"
+        docker rm -f "$daemon_container" 2>/dev/null || true
     fi
 
     echo ""
@@ -642,6 +785,8 @@ file ${BINARY_NAME}.app/Contents/MacOS/* 2>/dev/null || true
         # Remove old .app to prevent docker cp from creating nested .app structure
         rm -rf "$output_dir/qt/$app_name" 2>/dev/null || true
         if docker cp "$container_name:/build/$COIN_NAME/$app_name" "$output_dir/qt/$app_name" 2>/dev/null; then
+            # Ensure binaries inside .app bundles are executable (docker cp can lose +x)
+            find "$output_dir/qt/$app_name" -path "*/Contents/MacOS/*" -type f -exec chmod +x {} + 2>/dev/null || true
             success "macOS app bundle extracted to $output_dir/qt/"
             ls -lh "$output_dir/qt/$app_name/Contents/MacOS/" 2>/dev/null || true
             file "$output_dir/qt/$app_name/Contents/MacOS/"* 2>/dev/null || true
@@ -659,7 +804,148 @@ file ${BINARY_NAME}.app/Contents/MacOS/* 2>/dev/null || true
     fi
 
     if [[ "$target" == "daemon" || "$target" == "both" ]]; then
-        warn "macOS daemon cross-compile not yet implemented"
+        info "Building daemon for macOS..."
+        local daemon_container="mac-${COIN_NAME}-daemon"
+        docker rm -f "$daemon_container" 2>/dev/null || true
+
+        # Copy local source to temp dir for volume-mount
+        info "Copying local source to temp build dir..."
+        local tmpdir_daemon
+        tmpdir_daemon=$(mktemp -d)
+        cp -a "$SCRIPT_DIR/src" "$SCRIPT_DIR/share" "$tmpdir_daemon/"
+
+        docker create \
+            --name "$daemon_container" \
+            -v "$tmpdir_daemon:/build/$COIN_NAME:rw" \
+            "$DOCKER_MACOS" \
+            /bin/bash -c '
+set -e
+
+HOST="'"$OSXCROSS_HOST"'"
+PREFIX="'"$MACPORTS_PREFIX"'"
+OSXCROSS="'"$OSXCROSS_TARGET"'"
+
+cd /build/'"$COIN_NAME"'
+
+echo ">>> Patching source files..."
+
+# Add boost/bind.hpp includes
+for f in src/qt/clientmodel.cpp src/qt/walletmodel.cpp; do
+    if [ -f "$f" ] && ! grep -q "boost/bind.hpp" "$f"; then
+        sed -i "1a #include <boost/bind.hpp>" "$f"
+    fi
+done
+
+# Qualify filesystem:: with boost:: namespace
+for f in src/bitcoinrpc.cpp src/util.cpp src/walletdb.cpp src/init.cpp src/wallet.cpp src/db.cpp src/net.cpp src/main.cpp; do
+    if [ -f "$f" ]; then
+        sed -i "s/\bfilesystem::/boost::filesystem::/g" "$f"
+        sed -i "s/boost::boost::filesystem::/boost::filesystem::/g" "$f"
+    fi
+done
+
+# Fix deprecated Boost.Filesystem APIs
+sed -i "s/\.is_complete()/.is_absolute()/g" src/*.cpp 2>/dev/null || true
+sed -i "s/copy_option::overwrite_if_exists/copy_options::overwrite_existing/g" src/*.cpp 2>/dev/null || true
+sed -i "s|#include <boost/filesystem/convenience.hpp>|#include <boost/filesystem.hpp>|g" src/*.cpp 2>/dev/null || true
+
+# Fix Boost.Asio get_io_service() removed in Boost 1.80+
+if [ -f src/bitcoinrpc.cpp ]; then
+    sed -i "s/resolver(stream\.get_io_service())/resolver(stream.get_executor())/g" src/bitcoinrpc.cpp
+    perl -i -pe '"'"'s/acceptor->get_io_service\(\)/static_cast<boost::asio::io_context\&>(acceptor->get_executor().context())/'"'"' src/bitcoinrpc.cpp
+fi
+
+# Fix C++11 string literal spacing for PRI macros (clang strict)
+find src/ -name "*.cpp" -o -name "*.h" | \
+    xargs sed -i -E "s/\"(PRI[a-zA-Z0-9]+)/\" \1/g" 2>/dev/null || true
+
+echo ">>> Patching makefile.unix for macOS cross-compile..."
+
+# Fix makefile.unix: compile .c files with CC, not CXX (clang rejects void* casts)
+if [ -f src/makefile.unix ]; then
+    sed -i '"'"'/^obj\/%.o: %.c$/,/^\t\$(CXX)/ s/\$(CXX)/\$(CC)/'"'"' src/makefile.unix 2>/dev/null || true
+    sed -i '"'"'/^obj\/%.o: %.c$/,/xCXXFLAGS/ s/xCXXFLAGS/xCFLAGS/'"'"' src/makefile.unix 2>/dev/null || true
+fi
+
+# Remove GNU ld flags not supported by Apple linker
+if [ -f src/makefile.unix ]; then
+    sed -i "s/-Wl,-B\$(LMODE)//g; s/-Wl,-B\$(LMODE2)//g" src/makefile.unix 2>/dev/null || true
+    sed -i "s/-Wl,-z,relro//g; s/-Wl,-z,now//g" src/makefile.unix 2>/dev/null || true
+    sed -i "s/-l dl//g" src/makefile.unix 2>/dev/null || true
+fi
+
+echo ">>> Writing LevelDB build_config.mk..."
+
+echo "#!/bin/sh" > src/leveldb/build_detect_platform
+echo "touch \$1" >> src/leveldb/build_detect_platform
+chmod +x src/leveldb/build_detect_platform
+
+cat > src/leveldb/build_config.mk << '\''LEVELDB_EOF'\''
+SOURCES=db/builder.cc db/c.cc db/db_impl.cc db/db_iter.cc db/dbformat.cc db/dumpfile.cc db/filename.cc db/log_reader.cc db/log_writer.cc db/memtable.cc db/repair.cc db/table_cache.cc db/version_edit.cc db/version_set.cc db/write_batch.cc table/block.cc table/block_builder.cc table/filter_block.cc table/format.cc table/iterator.cc table/merger.cc table/table.cc table/table_builder.cc table/two_level_iterator.cc util/arena.cc util/bloom.cc util/cache.cc util/coding.cc util/comparator.cc util/crc32c.cc util/env.cc util/env_posix.cc util/filter_policy.cc util/hash.cc util/histogram.cc util/logging.cc util/options.cc util/status.cc port/port_posix.cc
+MEMENV_SOURCES=helpers/memenv/memenv.cc
+LEVELDB_EOF
+
+echo "CC=$OSXCROSS/bin/${HOST}-clang" >> src/leveldb/build_config.mk
+echo "CXX=$OSXCROSS/bin/${HOST}-clang++" >> src/leveldb/build_config.mk
+echo "PLATFORM=OS_MACOSX" >> src/leveldb/build_config.mk
+echo "PLATFORM_LDFLAGS=" >> src/leveldb/build_config.mk
+echo "PLATFORM_LIBS=" >> src/leveldb/build_config.mk
+echo "PLATFORM_CCFLAGS= -DOS_MACOSX -DLEVELDB_PLATFORM_POSIX" >> src/leveldb/build_config.mk
+echo "PLATFORM_CXXFLAGS= -DOS_MACOSX -DLEVELDB_PLATFORM_POSIX" >> src/leveldb/build_config.mk
+echo "PLATFORM_SHARED_EXT=" >> src/leveldb/build_config.mk
+echo "PLATFORM_SHARED_LDFLAGS=" >> src/leveldb/build_config.mk
+echo "PLATFORM_SHARED_CFLAGS=" >> src/leveldb/build_config.mk
+echo "AR=$OSXCROSS/bin/${HOST}-ar" >> src/leveldb/build_config.mk
+
+echo ">>> Building daemon with makefile.unix..."
+cd src
+make -f makefile.unix \
+    CC=$OSXCROSS/bin/${HOST}-clang \
+    CXX=$OSXCROSS/bin/${HOST}-clang++ \
+    AR=$OSXCROSS/bin/${HOST}-ar \
+    RANLIB=$OSXCROSS/bin/${HOST}-ranlib \
+    STRIP=$OSXCROSS/bin/${HOST}-strip \
+    LINK=$OSXCROSS/bin/${HOST}-clang++ \
+    BOOST_INCLUDE_PATH=$PREFIX/include \
+    BOOST_LIB_PATH=$PREFIX/lib \
+    BDB_INCLUDE_PATH=$PREFIX/include \
+    BDB_LIB_PATH=$PREFIX/lib \
+    OPENSSL_INCLUDE_PATH=$PREFIX/include \
+    OPENSSL_LIB_PATH=$PREFIX/lib \
+    MINIUPNPC_INCLUDE_PATH=$PREFIX/include \
+    MINIUPNPC_LIB_PATH=$PREFIX/lib \
+    CXXFLAGS="-DMAC_OSX -DMSG_NOSIGNAL=0 -I$PREFIX/include -mmacosx-version-min=11.0 -DBOOST_BIND_GLOBAL_PLACEHOLDERS" \
+    CFLAGS="-DMAC_OSX -DMSG_NOSIGNAL=0 -mmacosx-version-min=11.0" \
+    LDFLAGS="-L$PREFIX/lib -mmacosx-version-min=11.0" \
+    USE_UPNP=1 \
+    STATIC=all \
+    -j'"$jobs"'
+
+echo ">>> Stripping daemon..."
+$OSXCROSS/bin/${HOST}-strip '"$DAEMON_NAME"' 2>/dev/null || true
+
+echo ">>> Daemon build complete!"
+ls -lh '"$DAEMON_NAME"' 2>/dev/null || true
+file '"$DAEMON_NAME"' 2>/dev/null || true
+'
+
+        info "Starting macOS daemon build container: $daemon_container"
+        docker start -a "$daemon_container"
+
+        info "Extracting macOS daemon..."
+        if docker cp "$daemon_container:/build/$COIN_NAME/src/${DAEMON_NAME}" "$output_dir/daemon/${DAEMON_NAME}" 2>/dev/null; then
+            # Ensure daemon binary is executable (docker cp can lose +x)
+            chmod +x "$output_dir/daemon/${DAEMON_NAME}"
+            success "macOS daemon extracted to $output_dir/daemon/"
+            ls -lh "$output_dir/daemon/${DAEMON_NAME}"
+        else
+            error "Could not find daemon binary in container"
+            docker exec "$daemon_container" find /build/$COIN_NAME/src -type f -executable -name "*d" 2>/dev/null || true
+        fi
+
+        write_build_info "$output_dir/daemon" "macos-cross-compile" "daemon" "Docker: $DOCKER_MACOS (osxcross)"
+        docker rm -f "$daemon_container" 2>/dev/null || true
+        docker run --rm -v "$tmpdir_daemon:/cleanup" alpine rm -rf /cleanup 2>/dev/null || rm -rf "$tmpdir_daemon" 2>/dev/null || true
     fi
 
     echo ""
@@ -1666,244 +1952,115 @@ LEVELDB_QT_EOF
 build_native_windows() {
     local target="$1"
     local jobs="$2"
-    local os_version="${3:-Windows 10}"
-    local output_dir="$OUTPUT_BASE/windows"
-
-    # Connection details (set via environment variables)
-    local WIN_HOST="${BLAKECOIN_WIN_HOST:-}"
-    local WIN_USER="${BLAKECOIN_WIN_USER:-}"
-    local WIN_PASS="${BLAKECOIN_WIN_PASS:-}"
-
-    if [[ -z "$WIN_HOST" || -z "$WIN_USER" || -z "$WIN_PASS" ]]; then
-        error "Native Windows builds require SSH connection details."
-        echo ""
-        echo "  Set these environment variables before running:"
-        echo "    export BLAKECOIN_WIN_HOST=<windows-ip>"
-        echo "    export BLAKECOIN_WIN_USER=<username>"
-        echo "    export BLAKECOIN_WIN_PASS=<password>"
-        echo ""
-        echo "  Or build directly on Windows using MSYS2 (see README)."
-        exit 1
-    fi
-    local WIN_BUILD_DIR="/c/Blakecoin"
-    local MSYS2_BASH='C:\msys64\usr\bin\bash.exe'
+    local os_version="${3:-Windows}"
+    local output_dir="$OUTPUT_BASE/native"
 
     echo ""
     echo "============================================"
     echo "  Native Windows Build: $COIN_NAME_UPPER"
     echo "============================================"
-    echo "  Host:   $WIN_USER@$WIN_HOST"
-    echo "  Dir:    C:\\Blakecoin"
     echo "  Target: $target"
     echo ""
 
-    # Check for sshpass
-    if ! command -v sshpass &>/dev/null; then
-        error "sshpass is required for remote Windows builds"
-        echo "Install with: sudo apt install sshpass"
-        exit 1
-    fi
-
-    # SSH/SCP helpers
-    local SSH_OPTS="-o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o ConnectTimeout=10"
-    win_ssh() {
-        sshpass -p "$WIN_PASS" ssh $SSH_OPTS "$WIN_USER@$WIN_HOST" "$@"
-    }
-    win_scp() {
-        sshpass -p "$WIN_PASS" scp $SSH_OPTS "$@"
-    }
-    # Run command inside MSYS2 MinGW64 bash via temp script
-    # (avoids quoting issues across SSH -> cmd.exe -> bash)
-    win_mingw() {
-        local tmp_local="/tmp/_blk_cmd_$$.sh"
-        printf '#!/bin/bash\n%s\n' "$1" > "$tmp_local"
-        # Delete old script first to avoid stale execution
-        win_ssh "del C:\\Users\\$WIN_USER\\_blk_cmd.sh 2>nul" 2>/dev/null || true
-        if ! win_scp "$tmp_local" "$WIN_USER@$WIN_HOST:_blk_cmd.sh"; then
-            rm -f "$tmp_local"
-            error "Failed to upload command script to Windows host"
-            return 1
-        fi
-        rm -f "$tmp_local"
-        win_ssh "C:\\msys64\\usr\\bin\\env.exe MSYSTEM=MINGW64 $MSYS2_BASH -lc /c/Users/$WIN_USER/_blk_cmd.sh"
-    }
-
-    # Step 1: Test SSH connection
-    info "Connecting to $WIN_HOST..."
-    if ! win_ssh "echo ok" &>/dev/null; then
-        error "Cannot connect to Windows host $WIN_HOST via SSH"
-        error "Ensure OpenSSH Server is running and port 22 is open"
-        exit 1
-    fi
-    success "Connected to $WIN_HOST"
-
-    # Step 2: Check MSYS2 and dependencies are installed
-    local msys2_check
-    msys2_check=$(win_ssh 'if exist C:\msys64\usr\bin\bash.exe (echo FOUND) else (echo MISSING)' 2>/dev/null)
-    if [[ "$msys2_check" == *"MISSING"* ]]; then
-        error "MSYS2 is not installed on the Windows host."
+    # Must be running inside MSYS2 MinGW64
+    if [[ -z "${MSYSTEM:-}" ]] || [[ "$MSYSTEM" != "MINGW64" ]]; then
+        error "Native Windows builds must run from the MSYS2 MinGW64 shell."
         echo ""
-        echo "  Please install the following on the Windows machine before building:"
-        echo ""
-        echo "  1. Download and install MSYS2 from https://www.msys2.org"
-        echo "     - Install to the default location: C:\\msys64"
-        echo ""
-        echo "  2. Open 'MSYS2 MinGW64' from the Start menu and run:"
-        echo ""
-        echo "     pacman -Syu"
-        echo ""
-        echo "     (Close and reopen the terminal if prompted, then run again)"
-        echo ""
-        echo "  3. Install build dependencies:"
-        echo ""
-        echo "     pacman -S --needed \\"
-        echo "       mingw-w64-x86_64-gcc \\"
-        echo "       mingw-w64-x86_64-make \\"
-        echo "       mingw-w64-x86_64-boost \\"
-        echo "       mingw-w64-x86_64-openssl \\"
-        echo "       mingw-w64-x86_64-qt5-base \\"
-        echo "       mingw-w64-x86_64-qt5-tools \\"
-        echo "       mingw-w64-x86_64-miniupnpc \\"
-        echo "       mingw-w64-x86_64-db \\"
-        echo "       make tar"
-        echo ""
-        echo "  4. Reboot the Windows machine, then re-run this build script."
+        echo "  Open 'MSYS2 MinGW64' from the Start menu and re-run this script."
         echo ""
         exit 1
     fi
-    success "MSYS2 found"
 
-    # Verify key packages are available inside MSYS2
-    info "Checking MSYS2 build dependencies..."
-    local deps_ok
-    deps_ok=$(win_mingw "command -v gcc &>/dev/null && command -v qmake &>/dev/null && command -v make &>/dev/null && echo OK || echo MISSING" 2>/dev/null)
-    if [[ "$deps_ok" != *"OK"* ]]; then
-        error "Required MSYS2 packages are missing."
+    # Check key dependencies
+    local missing=()
+    command -v gcc &>/dev/null || missing+=("mingw-w64-x86_64-gcc")
+    command -v qmake &>/dev/null || missing+=("mingw-w64-x86_64-qt5-base")
+    command -v make &>/dev/null || missing+=("make")
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        error "Missing packages: ${missing[*]}"
         echo ""
-        echo "  Open 'MSYS2 MinGW64' on the Windows machine and run:"
-        echo ""
-        echo "     pacman -Syu"
-        echo "     pacman -S --needed \\"
-        echo "       mingw-w64-x86_64-gcc \\"
-        echo "       mingw-w64-x86_64-make \\"
-        echo "       mingw-w64-x86_64-boost \\"
-        echo "       mingw-w64-x86_64-openssl \\"
-        echo "       mingw-w64-x86_64-qt5-base \\"
-        echo "       mingw-w64-x86_64-qt5-tools \\"
-        echo "       mingw-w64-x86_64-miniupnpc \\"
-        echo "       mingw-w64-x86_64-db \\"
-        echo "       make tar"
-        echo ""
-        echo "  Then reboot and re-run this build script."
+        echo "  Install with:"
+        echo "    pacman -S --needed ${missing[*]}"
         echo ""
         exit 1
     fi
-    success "Build dependencies verified"
 
-    # Step 3: Create build directory and copy source
-    info "Preparing C:\\Blakecoin build directory..."
-    win_ssh 'if not exist C:\Blakecoin mkdir C:\Blakecoin' 2>/dev/null || true
+    mkdir -p "$output_dir/qt" "$output_dir/daemon"
 
-    # Tar the source on Linux (exclude outputs, .git, build objects)
-    local tmptar="/tmp/blakecoin-win-src.tar.gz"
-    info "Packaging source code..."
-    tar czf "$tmptar" -C "$SCRIPT_DIR" \
-        --exclude='outputs' \
-        --exclude='.git' \
-        --exclude='build/*.o' \
-        --exclude='src/leveldb/*.o' \
-        --exclude='src/leveldb/*.a' \
-        --exclude='*.exe' \
-        .
+    # Helper: in-place edit using perl (sed -i fails on NTFS due to file locking)
+    edit() { perl -i -pe "$1" "$2"; }
 
-    info "Copying source to Windows host..."
-    win_scp "$tmptar" "$WIN_USER@$WIN_HOST:C:/Blakecoin/src.tar.gz"
-    rm -f "$tmptar"
+    local MINGW_PREFIX="/mingw64"
 
-    # Clean old source and extract fresh copy inside MSYS2
-    win_mingw "cd /c/Blakecoin && rm -rf src/ share/ build/ *.pro Makefile* 2>/dev/null; tar xzf src.tar.gz && rm -f src.tar.gz"
-    success "Source code copied"
-
-    # Step 5: Build via single script (avoids quoting issues across SSH/cmd/bash)
     if [[ "$target" == "qt" || "$target" == "both" ]]; then
         info "Building Qt wallet..."
 
-        # Create build script locally and copy to Windows
-        cat > /tmp/blakecoin-win-build.sh << 'WINBUILD'
-#!/bin/bash
-set -e
-cd /c/Blakecoin
+        # Clean previous build
+        make clean 2>/dev/null || true
+        make distclean 2>/dev/null || true
+        rm -f Makefile "${QT_NAME}.exe" release/*.exe 2>/dev/null || true
+        mkdir -p build release
 
-# Helper: in-place file edit using perl (sed -i fails on Windows/NTFS due to file locking)
-edit() { perl -i -pe "$1" "$2"; }
+        # Fix line endings on key files
+        perl -i -pe 's/\r$//' *.pro src/util.h src/compat.h src/bitcoinrpc.cpp 2>/dev/null || true
 
-# Clean previous build
-echo "==> Cleaning previous build..."
-make clean 2>/dev/null || true
-make distclean 2>/dev/null || true
-rm -f Makefile blakecoin-qt.exe release/*.exe 2>/dev/null || true
-mkdir -p build release
+        local PRO_FILE
+        PRO_FILE=$(ls -1 *.pro 2>/dev/null | head -1)
+        if [[ -z "$PRO_FILE" ]]; then
+            error "No .pro file found"
+            exit 1
+        fi
+        info "Patching $PRO_FILE..."
 
-# Fix line endings on key files
-perl -i -pe 's/\r$//' *.pro src/util.h src/compat.h src/bitcoinrpc.cpp 2>/dev/null || true
+        # Fix qmake assignment syntax
+        edit 's/USE_UPNP:=1/USE_UPNP=1/' "$PRO_FILE"
 
-PRO_FILE=$(ls -1 *.pro 2>/dev/null | head -1)
-if [ -z "$PRO_FILE" ]; then
-    echo "ERROR: No .pro file found"
-    exit 1
-fi
-echo "==> Patching .pro file: $PRO_FILE"
+        # Fix lrelease path
+        edit 's|\\\\lrelease\.exe|/lrelease|' "$PRO_FILE"
 
-# Fix qmake assignment syntax
-edit 's/USE_UPNP:=1/USE_UPNP=1/' "$PRO_FILE"
+        # Set boost lib suffix to -mt (MSYS2 MinGW64 uses -mt suffix)
+        edit 's/^BOOST_LIB_SUFFIX=.*/BOOST_LIB_SUFFIX=-mt/' "$PRO_FILE"
 
-# Fix lrelease path
-edit 's|\\\\lrelease\.exe|/lrelease|' "$PRO_FILE"
+        # Comment out isEmpty(BOOST_LIB_SUFFIX) auto-detection block
+        perl -i -0pe 's/(isEmpty\(BOOST_LIB_SUFFIX\).*?\n\})/# $1/s' "$PRO_FILE" 2>/dev/null || true
 
-# Set boost lib suffix to -mt (MSYS2 MinGW64 uses -mt suffix)
-edit 's/^BOOST_LIB_SUFFIX=.*/BOOST_LIB_SUFFIX=-mt/' "$PRO_FILE"
+        # Remove hardcoded boost lib references
+        edit '/-lboost_system-mgw/d' "$PRO_FILE"
 
-# Comment out isEmpty(BOOST_LIB_SUFFIX) auto-detection block
-perl -i -0pe 's/(isEmpty\(BOOST_LIB_SUFFIX\).*?\n\})/# $1/s' "$PRO_FILE" 2>/dev/null || true
+        # Add BOOST_BIND_GLOBAL_PLACEHOLDERS
+        grep -q 'BOOST_BIND_GLOBAL_PLACEHOLDERS' "$PRO_FILE" || \
+            edit 's/^(DEFINES.*)/$1 BOOST_BIND_GLOBAL_PLACEHOLDERS/' "$PRO_FILE"
 
-# Remove hardcoded boost lib references
-edit '/-lboost_system-mgw/d' "$PRO_FILE"
+        # Point dependency paths to MinGW sysroot
+        edit "s|BOOST_INCLUDE_PATH=.*|BOOST_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
+        edit "s|BOOST_LIB_PATH=.*|BOOST_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
+        edit "s|BDB_INCLUDE_PATH=.*|BDB_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
+        edit "s|BDB_LIB_PATH=.*|BDB_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
+        edit "s|OPENSSL_INCLUDE_PATH=.*|OPENSSL_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
+        edit "s|OPENSSL_LIB_PATH=.*|OPENSSL_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
+        edit "s|MINIUPNPC_INCLUDE_PATH=.*|MINIUPNPC_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
+        edit "s|MINIUPNPC_LIB_PATH=.*|MINIUPNPC_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
 
-# Add BOOST_BIND_GLOBAL_PLACEHOLDERS
-grep -q 'BOOST_BIND_GLOBAL_PLACEHOLDERS' "$PRO_FILE" || \
-    edit 's/^(DEFINES.*)/$1 BOOST_BIND_GLOBAL_PLACEHOLDERS/' "$PRO_FILE"
+        # Add -lcrypt32 for OpenSSL 3.x Windows Certificate Store support
+        grep -q 'lcrypt32' "$PRO_FILE" || echo 'win32:LIBS += -lcrypt32' >> "$PRO_FILE"
 
-# Point dependency paths to MinGW sysroot
-MINGW_PREFIX="/mingw64"
-edit "s|BOOST_INCLUDE_PATH=.*|BOOST_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
-edit "s|BOOST_LIB_PATH=.*|BOOST_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
-edit "s|BDB_INCLUDE_PATH=.*|BDB_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
-edit "s|BDB_LIB_PATH=.*|BDB_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
-edit "s|OPENSSL_INCLUDE_PATH=.*|OPENSSL_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
-edit "s|OPENSSL_LIB_PATH=.*|OPENSSL_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
-edit "s|MINIUPNPC_INCLUDE_PATH=.*|MINIUPNPC_INCLUDE_PATH=$MINGW_PREFIX/include|" "$PRO_FILE"
-edit "s|MINIUPNPC_LIB_PATH=.*|MINIUPNPC_LIB_PATH=$MINGW_PREFIX/lib|" "$PRO_FILE"
+        # Fix pid_t redefinition — mingw-w64 already provides pid_t
+        info "Fixing pid_t and SOCKET conflicts..."
+        edit 's/typedef int pid_t;/\/\/ pid_t provided by mingw-w64/' src/util.h
 
-# Add -lcrypt32 for OpenSSL 3.x Windows Certificate Store support
-grep -q 'lcrypt32' "$PRO_FILE" || echo 'win32:LIBS += -lcrypt32' >> "$PRO_FILE"
+        # Fix SOCKET typedef — wrap in #ifndef so it only applies on non-Windows
+        perl -i -pe 's/^typedef u_int SOCKET;/#ifndef WIN32\ntypedef u_int SOCKET;\n#endif/' src/compat.h
 
-# Fix pid_t redefinition — mingw-w64 already provides pid_t
-echo "==> Fixing pid_t and SOCKET conflicts..."
-edit 's/typedef int pid_t;/\/\/ pid_t provided by mingw-w64/' src/util.h
+        # Fix Boost 1.80+ get_io_service() removal
+        info "Fixing Boost get_io_service()..."
+        if [[ -f src/bitcoinrpc.cpp ]]; then
+            edit 's/resolver\(stream\.get_io_service\(\)\)/resolver(stream.get_executor())/' src/bitcoinrpc.cpp
+            perl -i -pe 's/acceptor->get_io_service\(\)/static_cast<boost::asio::io_context\&>(acceptor->get_executor().context())/' src/bitcoinrpc.cpp
+        fi
 
-# Fix SOCKET typedef — wrap in #ifndef so it only applies on non-Windows
-perl -i -pe 's/^typedef u_int SOCKET;/#ifndef WIN32\ntypedef u_int SOCKET;\n#endif/' src/compat.h
-
-# Fix Boost 1.80+ get_io_service() removal
-echo "==> Fixing Boost get_io_service()..."
-if [ -f src/bitcoinrpc.cpp ]; then
-    edit 's/resolver\(stream\.get_io_service\(\)\)/resolver(stream.get_executor())/' src/bitcoinrpc.cpp
-    perl -i -pe 's/acceptor->get_io_service\(\)/static_cast<boost::asio::io_context\&>(acceptor->get_executor().context())/' src/bitcoinrpc.cpp
-fi
-
-# Write Windows LevelDB config for MinGW
-echo "==> Writing LevelDB build_config.mk"
-cat > src/leveldb/build_config.mk << 'LEVELDB_EOF'
+        # Write Windows LevelDB config for MinGW
+        info "Writing LevelDB build_config.mk"
+        cat > src/leveldb/build_config.mk << 'LEVELDB_EOF'
 SOURCES=db/builder.cc db/c.cc db/db_impl.cc db/db_iter.cc db/dbformat.cc db/filename.cc db/log_reader.cc db/log_writer.cc db/memtable.cc db/repair.cc db/table_cache.cc db/version_edit.cc db/version_set.cc db/write_batch.cc table/block.cc table/block_builder.cc table/filter_block.cc table/format.cc table/iterator.cc table/merger.cc table/table.cc table/table_builder.cc table/two_level_iterator.cc util/arena.cc util/bloom.cc util/cache.cc util/coding.cc util/comparator.cc util/crc32c.cc util/env.cc util/env_win.cc util/filter_policy.cc util/hash.cc util/histogram.cc util/options.cc util/status.cc port/port_win.cc
 MEMENV_SOURCES=helpers/memenv/memenv.cc
 CC=gcc
@@ -1915,56 +2072,36 @@ PLATFORM_CCFLAGS= -fno-builtin-memcmp -D_REENTRANT -DOS_WIN -DLEVELDB_PLATFORM_W
 PLATFORM_CXXFLAGS= -fno-builtin-memcmp -D_REENTRANT -DOS_WIN -DLEVELDB_PLATFORM_WINDOWS -DWINVER=0x0500 -D__USE_MINGW_ANSI_STDIO=1 -DLEVELDB_IS_BIG_ENDIAN=0
 LEVELDB_EOF
 
-# Build with shared Qt5 (MSYS2 qt5-static has UCRT/MSVCRT mismatch)
-# For a single-file static exe, use Docker cross-compile: ./build.sh --windows --qt --pull-docker
-echo "==> Running qmake"
-qmake "$PRO_FILE" "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1"
+        # Build with shared Qt5 (MSYS2 qt5-static has UCRT/MSVCRT mismatch)
+        # For a single-file static exe, use Docker cross-compile: ./build.sh --windows --qt --pull-docker
+        info "Running qmake..."
+        qmake "$PRO_FILE" "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1"
 
-echo "==> Building (jobs: __JOBS__)"
-make -j__JOBS__
+        info "Building (jobs: $jobs)..."
+        make -j"$jobs"
 
-# Find, strip, and copy the exe + all DLL dependencies
-echo "==> Finalizing..."
-QT_BIN=$(find release/ -name "*.exe" 2>/dev/null | head -1)
-[ -z "$QT_BIN" ] && QT_BIN=$(find . -maxdepth 1 -name "*.exe" 2>/dev/null | head -1)
-if [ -z "$QT_BIN" ]; then
-    echo "ERROR: No .exe found after build"
-    exit 1
-fi
-strip "$QT_BIN" 2>/dev/null || true
+        # Find and strip the exe
+        local QT_BIN
+        QT_BIN=$(find release/ -name "*.exe" 2>/dev/null | head -1)
+        [[ -z "$QT_BIN" ]] && QT_BIN=$(find . -maxdepth 1 -name "*.exe" 2>/dev/null | head -1)
+        if [[ -z "$QT_BIN" ]]; then
+            error "No .exe found after build"
+            exit 1
+        fi
+        strip "$QT_BIN" 2>/dev/null || true
 
-# Collect exe + all MinGW DLL deps into output folder
-OUTDIR="/c/Blakecoin/outputs/windows/qt"
-rm -rf "$OUTDIR"
-mkdir -p "$OUTDIR/platforms"
-cp "$QT_BIN" "$OUTDIR/blakecoin-qt.exe"
+        # Bundle exe + all MinGW DLL deps into output folder
+        mkdir -p "$output_dir/qt/platforms"
+        cp "$QT_BIN" "$output_dir/qt/${QT_NAME}.exe"
 
-echo "==> Bundling DLL dependencies..."
-ldd "$QT_BIN" | grep mingw64 | awk '{print $3}' | while read dll; do
-    cp "$dll" "$OUTDIR/" && echo "  Bundled $(basename $dll)"
-done
+        info "Bundling DLL dependencies..."
+        ldd "$QT_BIN" | grep mingw64 | awk '{print $3}' | while read dll; do
+            cp "$dll" "$output_dir/qt/" && echo "  Bundled $(basename "$dll")"
+        done
 
-# Qt platform plugin (required for Windows rendering)
-cp /mingw64/share/qt5/plugins/platforms/qwindows.dll "$OUTDIR/platforms/"
-echo "  Bundled platforms/qwindows.dll"
+        # Qt platform plugin (required for Windows rendering)
+        cp /mingw64/share/qt5/plugins/platforms/qwindows.dll "$output_dir/qt/platforms/"
 
-echo "==> Built: $OUTDIR/"
-ls -lh "$OUTDIR/blakecoin-qt.exe"
-echo "  Total DLLs: $(ls "$OUTDIR"/*.dll 2>/dev/null | wc -l)"
-WINBUILD
-
-        # Substitute job count
-        sed -i "s/__JOBS__/$jobs/g" /tmp/blakecoin-win-build.sh
-
-        win_scp /tmp/blakecoin-win-build.sh "$WIN_USER@$WIN_HOST:win-build.sh"
-        rm -f /tmp/blakecoin-win-build.sh
-
-        info "Running build inside MSYS2 MinGW64..."
-        win_mingw "chmod +x /c/Users/$WIN_USER/win-build.sh && /c/Users/$WIN_USER/win-build.sh"
-
-        # Copy output back to Linux host
-        mkdir -p "$output_dir/qt"
-        win_scp "$WIN_USER@$WIN_HOST:C:/Blakecoin/outputs/windows/qt/blakecoin-qt.exe" "$output_dir/qt/${QT_NAME}.exe"
         success "Qt wallet: $output_dir/qt/${QT_NAME}.exe"
         ls -lh "$output_dir/qt/${QT_NAME}.exe"
     fi
@@ -1973,17 +2110,12 @@ WINBUILD
         warn "Windows native daemon build not yet implemented"
     fi
 
-    # Get OS version from remote
-    local remote_os_version
-    remote_os_version=$(win_mingw "uname -r 2>/dev/null" 2>/dev/null || echo "Windows 10")
-    os_version="MINGW64 / Windows ($remote_os_version)"
-
-    write_build_info "$output_dir" "native-windows" "$target" "$os_version"
+    os_version="MINGW64 / Windows ($(uname -r 2>/dev/null || echo Windows))"
+    write_build_info "$output_dir" "native" "$target" "$os_version"
 
     echo ""
     echo "============================================"
     echo "  BUILD SUCCESSFUL — Native Windows"
-    echo "  Host:   $WIN_USER@$WIN_HOST"
     echo "  Output: $output_dir/"
     echo "============================================"
 }
@@ -2055,10 +2187,6 @@ main() {
             fi
             ;;
         windows)
-            if [[ "$target" == "daemon" ]]; then
-                warn "Windows build only supports Qt wallet currently"
-                target="qt"
-            fi
             build_windows "$target" "$jobs" "$docker_mode"
             ;;
         macos)

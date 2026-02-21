@@ -1,17 +1,30 @@
+<p align="center">
+  <img src="src/qt/res/icons/bitcoin.png" alt="Blakecoin" width="128">
+</p>
+
 # Blakecoin
 
-- A cryptocurrency using the **Blake-256** hashing algorithm — a SHA-3 candidate faster than Scrypt, SHA-256D, Keccak, and Groestl
+## About Blakecoin
+
+Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://github.com/BlueDragon747/photon), [BlakeBitcoin](https://github.com/BlakeBitcoin/BlakeBitcoin), [Electron](https://github.com/BlueDragon747/Electron-ELT), [Universal Molecule](https://github.com/BlueDragon747/universalmol), and [Lithium](https://github.com/BlueDragon747/lithium). It is a digital currency using peer-to-peer technology with no central authority.
+
+- Uses the **Blake-256** hashing algorithm — a SHA-3 candidate faster than Scrypt, SHA-256D, Keccak, and Groestl
 - Forked from **Bitcoin 0.8.6**
-- Uses optimized 8-round Blake-256 with reduced double-hashing for efficiency
+- Optimized 8-round Blake-256 with reduced double-hashing for efficiency
 - Maintains proven ECDSA security
+- Website: https://blakecoin.org
 
 | Network Info | |
 |---|---|
 | Algorithm | Blake-256 (8 rounds) |
 | Block time | 2 minutes |
+| Block reward | 25 BLC |
+| Difficulty retarget | Every 20 blocks |
 | Default port | 8333 |
 | RPC port | 8332 |
 | Max supply | 7,000,000,000 BLC |
+
+---
 
 ## Quick Start (Ubuntu 18.04)
 
@@ -36,7 +49,7 @@ sudo apt install build-essential libssl-dev libboost-all-dev \
 ./build.sh [PLATFORM] [TARGET] [OPTIONS]
 
 Platforms:
-  --native          Build on this machine (Linux, macOS, or Windows)
+  --native          Build on this machine (Linux/Ubuntu 18.04, macOS, or Windows)
   --appimage        Portable Linux AppImage (requires Docker)
   --windows         Cross-compile for Windows from Linux (requires Docker)
   --macos           Cross-compile for macOS from Linux (requires Docker)
@@ -70,6 +83,48 @@ Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker`
 ```
 
 
+### Windows
+
+There are two ways to build for Windows:
+
+**Native (MSYS2/MinGW64)** — builds on Windows directly. Produces a ~10MB exe with DLLs bundled alongside it in the output folder.
+
+Install [MSYS2](https://www.msys2.org), then from the MINGW64 shell:
+
+```bash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-boost \
+  mingw-w64-x86_64-openssl mingw-w64-x86_64-qt5-base \
+  mingw-w64-x86_64-qt5-tools mingw-w64-x86_64-miniupnpc \
+  mingw-w64-x86_64-db
+```
+
+Then build:
+
+```bash
+./build.sh --native --both          # Daemon + Qt wallet
+./build.sh --native --qt            # Qt wallet only
+./build.sh --native --daemon        # Daemon only
+```
+
+**Docker cross-compile (from Linux)** — builds a single ~30MB static exe with no DLL dependencies.
+
+```bash
+./build.sh --windows --both --pull-docker     # Daemon + Qt (pull from Hub)
+./build.sh --windows --qt --pull-docker       # Qt wallet only
+./build.sh --windows --daemon --pull-docker   # Daemon only
+./build.sh --windows --both --build-docker     # Build MXE image locally first
+./build.sh --windows --qt --build-docker      # Qt only (build image locally)
+./build.sh --windows --daemon --build-docker  # Daemon only (build image locally)
+```
+
+Uses `sidgrip/mxe-base:latest` Docker image with MXE cross-compiler. Everything (Qt, Boost, OpenSSL, etc.) is statically linked into one self-contained exe.
+
+> **Why the difference?**
+>
+> - MXE compiles all dependencies from source with the same toolchain, so everything links statically into one binary
+> - MSYS2's static Qt5 package uses a different C runtime (UCRT) than the MinGW64 toolchain (MSVCRT), making fully static linking impossible
+> - The native build auto-bundles all required DLLs in the output folder instead
+
 ### macOS
 
 There are two ways to build for macOS:
@@ -96,50 +151,14 @@ Then build:
 ./build.sh --macos --both --pull-docker     # Daemon + Qt (pull from Hub)
 ./build.sh --macos --qt --pull-docker       # Qt wallet only
 ./build.sh --macos --daemon --pull-docker   # Daemon only
-./build.sh --macos --qt --build-docker      # Build osxcross image locally
+./build.sh --macos --both --build-docker    # Build osxcross image locally first
+./build.sh --macos --qt --build-docker     # Qt only (build image locally)
+./build.sh --macos --daemon --build-docker # Daemon only (build image locally)
 ```
 
 Uses `sidgrip/osxcross-base:latest` Docker image with osxcross cross-compiler.
 
-### Windows
-
-There are two ways to build for Windows:
-
-**Native (MSYS2/MinGW64)** — builds on Windows directly. Produces a ~10MB exe with DLLs bundled alongside it in the output folder.
-
-Install [MSYS2](https://www.msys2.org), then from the MINGW64 shell:
-
-```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-boost \
-  mingw-w64-x86_64-openssl mingw-w64-x86_64-qt5-base \
-  mingw-w64-x86_64-qt5-tools mingw-w64-x86_64-miniupnpc \
-  mingw-w64-x86_64-db
-```
-
-Then build:
-
-```bash
-./build.sh --native --both          # Daemon + Qt wallet
-./build.sh --native --qt            # Qt wallet only
-./build.sh --native --daemon        # Daemon only
-```
-
-**Docker cross-compile (from Linux)** — builds a single ~30MB static exe with no DLL dependencies. Better for distribution.
-
-```bash
-./build.sh --windows --both --pull-docker     # Daemon + Qt (pull from Hub)
-./build.sh --windows --qt --pull-docker       # Qt wallet only
-./build.sh --windows --daemon --pull-docker   # Daemon only
-./build.sh --windows --qt --build-docker      # Build MXE image locally
-```
-
-Uses `sidgrip/mxe-base:latest` Docker image with MXE cross-compiler. Everything (Qt, Boost, OpenSSL, etc.) is statically linked into one self-contained exe.
-
-> **Why the difference?**
->
-> - MXE compiles all dependencies from source with the same toolchain, so everything links statically into one binary
-> - MSYS2's static Qt5 package uses a different C runtime (UCRT) than the MinGW64 toolchain (MSVCRT), making fully static linking impossible
-> - The native build auto-bundles all required DLLs in the output folder instead
+---
 
 ## Output Structure
 
@@ -177,12 +196,14 @@ Local builds are cached by Docker — subsequent builds are instant.
 >
 > - The macOS cross-compile Dockerfile requires an Apple SDK tarball that **cannot be redistributed**
 > - Place `MacOSX26.2.sdk.tar.xz` in `docker/sdk/` before running `--build-docker`
-> - Extract it from Xcode: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`
+> - Extract it from [Xcode](https://developer.apple.com/download/all/): `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/`
 > - Using `--pull-docker` does **not** require the SDK — it is already included in the prebuilt Docker Hub image
+
+---
 
 ## Multi-Coin Builder
 
-For building wallets for all Blake-family coins (Blakecoin, Photon, BlakeBitcoin, Electron, Universal Molecule, Lithium), see the [Blakestream Installer](https://github.com/SidGrip/Blakestream-Installer).
+For building wallets for all Blake-family coins [Blakecoin](https://github.com/BlueDragon747/Blakecoin), [Photon](https://github.com/BlueDragon747/photon), [BlakeBitcoin](https://github.com/BlakeBitcoin/BlakeBitcoin), [Electron](https://github.com/BlueDragon747/Electron-ELT), [Universal Molecule](https://github.com/BlueDragon747/universalmol), [Lithium](https://github.com/BlueDragon747/lithium), see the [Blakestream Installer](https://github.com/SidGrip/Blakestream-Installer).
 
 ## License
 

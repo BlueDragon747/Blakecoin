@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install MXE build dependencies
 RUN apt-get update && apt-get install -y \
-    autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib \
+    autoconf automake autopoint bash bison bzip2 curl flex g++ g++-multilib \
     gettext git gperf intltool libc6-dev-i386 libgdk-pixbuf2.0-dev \
     libltdl-dev libgl-dev libpcre3-dev libssl-dev libtool-bin \
     libxml-parser-perl lzip make openssl p7zip-full patch perl \
