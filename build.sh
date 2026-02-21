@@ -1685,7 +1685,20 @@ Categories=Finance;Network;
 StartupWMClass=${QT_NAME}
 DESK_EOF
         chmod +x "$app_dir/${QT_NAME}.desktop"
-        gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+        if [[ ! -f "$HOME/.local/share/icons/hicolor/index.theme" ]]; then
+            cat > "$HOME/.local/share/icons/hicolor/index.theme" << 'THEME_EOF'
+[Icon Theme]
+Name=Hicolor
+Comment=Fallback Icon Theme
+Directories=256x256/apps
+
+[256x256/apps]
+Size=256
+Context=Applications
+Type=Fixed
+THEME_EOF
+        fi
+        gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
         update-desktop-database "$app_dir" 2>/dev/null || true
         success "Desktop launcher installed — search '$COIN_NAME_UPPER' in Activities"
     fi
