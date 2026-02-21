@@ -1,6 +1,7 @@
 <p align="center">
   <img src="src/qt/res/icons/bitcoin.png" alt="Blakecoin" width="128">
 </p>
+
 ## About Blakecoin
 
 Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://github.com/BlueDragon747/photon), [BlakeBitcoin](https://github.com/BlakeBitcoin/BlakeBitcoin), [Electron](https://github.com/BlueDragon747/Electron-ELT), [Universal Molecule](https://github.com/BlueDragon747/universalmol), and [Lithium](https://github.com/BlueDragon747/lithium). It is a digital currency using peer-to-peer technology with no central authority.
