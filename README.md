@@ -18,8 +18,8 @@ Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://g
 | Block time | 2 minutes |
 | Block reward | 25 BLC |
 | Difficulty retarget | Every 20 blocks |
-| Default port | 8333 |
-| RPC port | 8332 |
+| Default port | 8773 |
+| RPC port | 8772 |
 | Max supply | 7,000,000,000 BLC |
 
 ---
@@ -164,6 +164,7 @@ Uses `sidgrip/osxcross-base:latest` Docker image with osxcross cross-compiler.
 
 ```
 outputs/
+├── blakecoin.conf      Auto-generated config with RPC credentials and peers
 ├── native/
 │   ├── daemon/         blakecoind
 │   └── qt/             blakecoin-qt
@@ -177,7 +178,7 @@ outputs/
     └── qt/             Blakecoin-Qt.app
 ```
 
-Each output directory includes a `build-info.txt` with OS version and build details.
+The config file is auto-generated on first build with random RPC credentials, active peers from the network, and default settings. Copy it to `~/.blakecoin/blakecoin.conf` before running the daemon.
 
 ## Docker Images
 

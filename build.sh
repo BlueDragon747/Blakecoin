@@ -28,6 +28,13 @@ QT_NAME="blakecoin-qt"
 REPO_URL="https://github.com/SidGrip/Blakecoin.git"
 REPO_BRANCH="master"
 
+# Network ports and config
+RPC_PORT=8772
+P2P_PORT=8773
+CHAINZ_CODE="blc"
+CONFIG_FILE="${COIN_NAME}.conf"
+CONFIG_DIR=".${COIN_NAME}"
+
 # Docker images
 DOCKER_NATIVE="sidgrip/daemon-base:18.04"
 DOCKER_WINDOWS="sidgrip/mxe-base:latest"
@@ -173,6 +180,53 @@ Date:       $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 Branch:     $REPO_BRANCH
 Script:     build.sh
 EOF
+}
+
+generate_config() {
+    local conf_path="$OUTPUT_BASE/$CONFIG_FILE"
+    if [[ -f "$conf_path" ]]; then
+        info "Config already exists: $conf_path"
+        return
+    fi
+
+    info "Generating $CONFIG_FILE..."
+    local rpcuser rpcpassword peers=""
+    rpcuser="rpcuser=$(head -c 100 /dev/urandom | tr -cd '[:alnum:]' | head -c 10)"
+    rpcpassword="rpcpassword=$(head -c 200 /dev/urandom | tr -cd '[:alnum:]' | head -c 22)"
+
+    # Ensure curl is available for peer fetching
+    if ! command -v curl &>/dev/null; then
+        if command -v apt-get &>/dev/null; then
+            info "Installing curl..."
+            sudo apt-get install -y -qq curl 2>/dev/null || true
+        fi
+    fi
+
+    # Fetch active peers from chainz cryptoid
+    if command -v curl &>/dev/null; then
+        local nodes
+        nodes=$(curl -s "https://chainz.cryptoid.info/${CHAINZ_CODE}/api.dws?q=nodes" 2>/dev/null || true)
+        if [[ -n "$nodes" ]]; then
+            peers=$(grep -oP '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' <<< "$nodes" | grep -v '^0\.' | sed 's/^/addnode=/' || true)
+        fi
+    fi
+
+    mkdir -p "$OUTPUT_BASE"
+    cat > "$conf_path" <<EOF
+maxconnections=20
+$rpcuser
+$rpcpassword
+rpcallowip=0.0.0.0/0
+rpcport=$RPC_PORT
+port=$P2P_PORT
+gen=0
+listen=1
+daemon=1
+server=0
+txindex=0
+$peers
+EOF
+    success "Config written: $conf_path"
 }
 
 ensure_docker_image() {
@@ -1248,7 +1302,7 @@ _COIN_NAME="'"$COIN_NAME_UPPER"'"
 _APPIMAGE_PATH="${APPIMAGE:-$0}"
 _ICON_SRC="$APPDIR/usr/share/icons/hicolor/256x256/apps/${_ICON_NAME}.png"
 _ICON_DST="$HOME/.local/share/icons/hicolor/256x256/apps/${_ICON_NAME}.png"
-_DESKTOP_DST="$HOME/.local/share/applications/${_QT_NAME}.desktop"
+_DESKTOP_DST="$HOME/.local/share/applications/${_QT_NAME}-appimage.desktop"
 
 if [ -f "$_ICON_SRC" ]; then
     mkdir -p "$(dirname "$_ICON_DST")" "$(dirname "$_DESKTOP_DST")" 2>/dev/null
@@ -2213,6 +2267,9 @@ main() {
             build_appimage "$jobs" "$docker_mode"
             ;;
     esac
+
+    # Generate config file if not already present
+    generate_config
 }
 
 main "$@"
