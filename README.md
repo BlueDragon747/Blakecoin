@@ -29,10 +29,12 @@ Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://g
 ```bash
 git clone https://github.com/SidGrip/Blakecoin.git
 cd Blakecoin
+sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo apt update
 sudo apt install build-essential libssl-dev libboost-all-dev \
   libdb4.8-dev libdb4.8++-dev libminiupnpc-dev \
   qt5-qmake qtbase5-dev qttools5-dev-tools
-./build.sh --native --both
+bash ./build.sh --native --both
 ```
 
 - Builds both the daemon (`blakecoind`) and Qt wallet (`blakecoin-qt`) natively on Ubuntu 18.04
@@ -44,10 +46,10 @@ sudo apt install build-essential libssl-dev libboost-all-dev \
 ## Build Options
 
 ```
-./build.sh [PLATFORM] [TARGET] [OPTIONS]
+bash ./build.sh [PLATFORM] [TARGET] [OPTIONS]
 
 Platforms:
-  --native          Build on this machine (Linux/Ubuntu 18.04, macOS, or Windows)
+  --native          Build on Linux/Ubuntu 18.04, macOS, or Windows
   --appimage        Portable Linux AppImage (requires Docker)
   --windows         Cross-compile for Windows from Linux (requires Docker)
   --macos           Cross-compile for macOS from Linux (requires Docker)
@@ -72,12 +74,12 @@ Other options:
 Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker` to build them locally from the Dockerfiles in `docker/`.
 
 ```bash
-./build.sh --native --both --pull-docker      # Daemon + Qt (pull from Hub)
-./build.sh --native --qt --pull-docker        # Qt wallet only
-./build.sh --native --daemon --pull-docker    # Daemon only
-./build.sh --native --both --build-docker     # Build Docker image locally first
-./build.sh --appimage --pull-docker           # Portable AppImage
-./build.sh --appimage --build-docker          # AppImage (build image locally)
+bash ./build.sh --native --both --pull-docker      # Daemon + Qt (pull from Hub)
+bash ./build.sh --native --qt --pull-docker        # Qt wallet only
+bash ./build.sh --native --daemon --pull-docker    # Daemon only
+bash ./build.sh --native --both --build-docker     # Build Docker image locally first
+bash ./build.sh --appimage --pull-docker           # Portable AppImage
+bash ./build.sh --appimage --build-docker          # AppImage (build image locally)
 ```
 
 
@@ -99,20 +101,20 @@ pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-boost \
 Then build:
 
 ```bash
-./build.sh --native --both          # Daemon + Qt wallet
-./build.sh --native --qt            # Qt wallet only
-./build.sh --native --daemon        # Daemon only
+bash ./build.sh --native --both          # Daemon + Qt wallet
+bash ./build.sh --native --qt            # Qt wallet only
+bash ./build.sh --native --daemon        # Daemon only
 ```
 
 **Docker cross-compile (from Linux)** — builds a single ~30MB static exe with no DLL dependencies.
 
 ```bash
-./build.sh --windows --both --pull-docker     # Daemon + Qt (pull from Hub)
-./build.sh --windows --qt --pull-docker       # Qt wallet only
-./build.sh --windows --daemon --pull-docker   # Daemon only
-./build.sh --windows --both --build-docker     # Build MXE image locally first
-./build.sh --windows --qt --build-docker      # Qt only (build image locally)
-./build.sh --windows --daemon --build-docker  # Daemon only (build image locally)
+bash ./build.sh --windows --both --pull-docker     # Daemon + Qt (pull from Hub)
+bash ./build.sh --windows --qt --pull-docker       # Qt wallet only
+bash ./build.sh --windows --daemon --pull-docker   # Daemon only
+bash ./build.sh --windows --both --build-docker     # Build MXE image locally first
+bash ./build.sh --windows --qt --build-docker      # Qt only (build image locally)
+bash ./build.sh --windows --daemon --build-docker  # Daemon only (build image locally)
 ```
 
 Uses `sidgrip/mxe-base:latest` Docker image with MXE cross-compiler. Everything (Qt, Boost, OpenSSL, etc.) is statically linked into one self-contained exe.
@@ -138,20 +140,20 @@ brew install openssl boost@1.85 miniupnpc berkeley-db@4 qt@5
 Then build:
 
 ```bash
-./build.sh --native --both          # Daemon + Qt wallet
-./build.sh --native --qt            # Qt wallet only
-./build.sh --native --daemon        # Daemon only
+bash ./build.sh --native --both          # Daemon + Qt wallet
+bash ./build.sh --native --qt            # Qt wallet only
+bash ./build.sh --native --daemon        # Daemon only
 ```
 
 **Docker cross-compile (from Linux)** — builds a macOS binary from a Linux host.
 
 ```bash
-./build.sh --macos --both --pull-docker     # Daemon + Qt (pull from Hub)
-./build.sh --macos --qt --pull-docker       # Qt wallet only
-./build.sh --macos --daemon --pull-docker   # Daemon only
-./build.sh --macos --both --build-docker    # Build osxcross image locally first
-./build.sh --macos --qt --build-docker     # Qt only (build image locally)
-./build.sh --macos --daemon --build-docker # Daemon only (build image locally)
+bash ./build.sh --macos --both --pull-docker     # Daemon + Qt (pull from Hub)
+bash ./build.sh --macos --qt --pull-docker       # Qt wallet only
+bash ./build.sh --macos --daemon --pull-docker   # Daemon only
+bash ./build.sh --macos --both --build-docker    # Build osxcross image locally first
+bash ./build.sh --macos --qt --build-docker     # Qt only (build image locally)
+bash ./build.sh --macos --daemon --build-docker # Daemon only (build image locally)
 ```
 
 Uses `sidgrip/osxcross-base:latest` Docker image with osxcross cross-compiler.
