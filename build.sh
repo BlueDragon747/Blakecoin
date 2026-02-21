@@ -1663,7 +1663,11 @@ build_native_linux_direct() {
             [[ -f "$search" ]] && icon_src="$search" && break
         done
         if [[ -n "$icon_src" ]]; then
-            cp "$icon_src" "$icon_dir/${QT_NAME}.png"
+            if command -v convert &>/dev/null; then
+                convert "$icon_src" -resize 256x256 -background none -gravity center -extent 256x256 "$icon_dir/${QT_NAME}.png"
+            else
+                cp "$icon_src" "$icon_dir/${QT_NAME}.png"
+            fi
         fi
 
         # Create .desktop file
