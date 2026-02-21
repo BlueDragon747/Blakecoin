@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/qt/res/icons/bitcoin.png" alt="Blakecoin" width="128">
+  <img src="src/qt/res/icons/bitcoin.png" alt="Blakecoin" width="95">
 </p>
 
 ## About Blakecoin
