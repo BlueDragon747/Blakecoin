@@ -39,7 +39,7 @@ cd Blakecoin
 - Binaries go to `outputs/native/`
 - Auto-generates `outputs/blakecoin.conf` with random RPC credentials and live peers
 - On Linux, Qt builds automatically install a `.desktop` launcher and icon so the wallet appears in Activities search
-- Works on Ubuntu 20.04 (GCC 9, Boost 1.71), 22.04 (GCC 11, Boost 1.74), and 24.04 (GCC 14, Boost 1.83)
+- Works on Ubuntu 20.04 (GCC 9, Boost 1.71), 22.04 (GCC 11, Boost 1.74), and 24.04 (GCC 13, Boost 1.83)
 - BDB version auto-detected — installs BDB 4.8 on Ubuntu 20.04 for portable wallets, falls back to system BDB with `--with-incompatible-bdb` on 22.04/24.04
 
 ## Build Options
@@ -175,11 +175,14 @@ Each output directory includes a `build-info.txt` with OS version and build deta
 
 ## Docker Images
 
-These are shared with the 0.8.x Blake-family coins. Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker` to build locally from the Dockerfiles in `docker/`.
+Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker` to build locally from the Dockerfiles in `docker/`.
 
 | Image | Platform | Description |
 |-------|----------|-------------|
-| `sidgrip/appimage-base:22.04` | Native Linux + AppImage | Ubuntu 22.04 build environment |
+| `sidgrip/native-base:20.04` | Native Linux | Ubuntu 20.04 (GCC 9, Boost 1.71, BDB 4.8) |
+| `sidgrip/native-base:22.04` | Native Linux | Ubuntu 22.04 (GCC 11, Boost 1.74, BDB 4.8) |
+| `sidgrip/native-base:24.04` | Native Linux | Ubuntu 24.04 (GCC 13, Boost 1.83, BDB 4.8) |
+| `sidgrip/appimage-base:22.04` | AppImage | Ubuntu 22.04 + appimagetool |
 | `sidgrip/mxe-base:latest` | Windows cross-compile | MXE with Qt5, Boost, OpenSSL (fully static) |
 | `sidgrip/osxcross-base:latest` | macOS cross-compile | osxcross clang-18 with macOS SDK |
 

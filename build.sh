@@ -12,8 +12,11 @@
 # Usage: ./build.sh [PLATFORM] [TARGET] [OPTIONS]
 #   See ./build.sh --help for full usage.
 #
-# Docker Hub images (prebuilt, shared with 0.8.x coins):
-#   sidgrip/appimage-base:22.04   — Native Linux + AppImage
+# Docker Hub images (prebuilt):
+#   sidgrip/native-base:20.04     — Native Linux (Ubuntu 20.04, GCC 9, Boost 1.71)
+#   sidgrip/native-base:22.04     — Native Linux (Ubuntu 22.04, GCC 11, Boost 1.74)
+#   sidgrip/native-base:24.04     — Native Linux (Ubuntu 24.04, GCC 13, Boost 1.83)
+#   sidgrip/appimage-base:22.04   — AppImage builds (Ubuntu 22.04 + appimagetool)
 #   sidgrip/mxe-base:latest       — Windows cross-compile (MXE + MinGW)
 #   sidgrip/osxcross-base:latest  — macOS cross-compile (osxcross + clang-18)
 #
@@ -44,8 +47,8 @@ DAEMON='daemon=1'
 SERVER='server=0'
 TXINDEX='txindex=0'
 
-# Docker images (shared with 0.8.x coins — no custom Dockerfiles needed)
-DOCKER_NATIVE="sidgrip/appimage-base:22.04"
+# Docker images
+DOCKER_NATIVE="sidgrip/native-base:22.04"
 DOCKER_APPIMAGE="sidgrip/appimage-base:22.04"
 DOCKER_WINDOWS="sidgrip/mxe-base:latest"
 DOCKER_MACOS="sidgrip/osxcross-base:latest"
@@ -127,8 +130,11 @@ Examples:
   ./build.sh --macos --qt --pull-docker        # Pull osxcross-base from Docker Hub
   ./build.sh --appimage --pull-docker          # Pull appimage-base from Docker Hub
 
-Docker Hub images (shared with 0.8.x coins, used with --pull-docker):
-  sidgrip/appimage-base:22.04           Native + AppImage (Ubuntu 22.04)
+Docker Hub images (used with --pull-docker):
+  sidgrip/native-base:20.04             Native Linux (Ubuntu 20.04, GCC 9)
+  sidgrip/native-base:22.04             Native Linux (Ubuntu 22.04, GCC 11) [default]
+  sidgrip/native-base:24.04             Native Linux (Ubuntu 24.04, GCC 13)
+  sidgrip/appimage-base:22.04           AppImage (Ubuntu 22.04 + appimagetool)
   sidgrip/mxe-base:latest               Windows cross-compile (MXE + MinGW)
   sidgrip/osxcross-base:latest          macOS cross-compile (osxcross + clang-18)
 EOF
@@ -250,9 +256,13 @@ ensure_docker_image() {
         local docker_dir="$SCRIPT_DIR/docker"
         local dockerfile=""
         case "$image" in
-            *appimage-base*)  dockerfile="Dockerfile.appimage-base" ;;
-            *mxe-base*)       dockerfile="Dockerfile.mxe-base" ;;
-            *osxcross-base*)  dockerfile="Dockerfile.osxcross-base" ;;
+            *native-base:20.04*)  dockerfile="Dockerfile.native-base-20.04" ;;
+            *native-base:22.04*)  dockerfile="Dockerfile.native-base-22.04" ;;
+            *native-base:24.04*)  dockerfile="Dockerfile.native-base-24.04" ;;
+            *native-base*)        dockerfile="Dockerfile.native-base-22.04" ;;
+            *appimage-base*)      dockerfile="Dockerfile.appimage-base" ;;
+            *mxe-base*)           dockerfile="Dockerfile.mxe-base" ;;
+            *osxcross-base*)      dockerfile="Dockerfile.osxcross-base" ;;
             *)
                 error "Unknown image: $image"
                 exit 1
