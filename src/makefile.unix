@@ -5,6 +5,7 @@
 # :=0 --> UPnP support turned off by default at runtime
 # :=1 --> UPnP support turned on by default at runtime
 # :=- --> No UPnP support - miniupnp not required
+# Default disabled: :=1 causes boost::lock_error on macOS (osxcross pthreads incompatibility)
 USE_UPNP:=-
 
 # :=1 --> Enable IPv6 support

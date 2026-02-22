@@ -57,8 +57,8 @@ bool CCrypter::Encrypt(const CKeyingMaterial& vchPlaintext, std::vector<unsigned
     int nCLen = nLen + AES_BLOCK_SIZE, nFLen = 0;
     vchCiphertext = std::vector<unsigned char> (nCLen);
 
-    // OpenSSL 1.1.0+: EVP_CIPHER_CTX must be heap-allocated with _new/_free
-    // (the old stack-based _init/_cleanup API was removed)
+    // FIX: Original code had uninitialized EVP_CIPHER_CTX* pointer — heap corruption
+    // during wallet encryption (encryptwallet RPC). Now heap-allocated per OpenSSL 1.1+ API.
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) return false;
 
@@ -86,7 +86,8 @@ bool CCrypter::Decrypt(const std::vector<unsigned char>& vchCiphertext, CKeyingM
 
     vchPlaintext = CKeyingMaterial(nPLen);
 
-    // OpenSSL 1.1.0+: EVP_CIPHER_CTX must be heap-allocated with _new/_free
+    // FIX: Original code had uninitialized EVP_CIPHER_CTX* pointer — heap corruption
+    // during wallet decryption. Now heap-allocated per OpenSSL 1.1+ API.
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) return false;
 

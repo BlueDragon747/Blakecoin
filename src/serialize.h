@@ -899,6 +899,8 @@ public:
     template<typename InputIterator>
     void insert(iterator it, InputIterator first, InputIterator last) { vch.insert(it, first, last); }
 
+    // NOTE: std::vector<char>::const_iterator overload was removed — on macOS libc++,
+    // const_iterator resolves to const char*, creating a duplicate of this method.
     void insert(iterator it, const_iterator first, const_iterator last)
     {
         assert(last - first >= 0);
