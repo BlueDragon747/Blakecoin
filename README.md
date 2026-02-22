@@ -69,6 +69,11 @@ Other options:
 
 ## Platform Build Instructions
 
+```bash
+git clone -b 0.15.2 https://github.com/SidGrip/Blakecoin.git Blakecoin-0.15.2
+cd Blakecoin-0.15.2
+```
+
 ### Linux (Native)
 
 Build directly on the host — dependencies are auto-installed via apt:
