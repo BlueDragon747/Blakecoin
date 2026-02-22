@@ -183,6 +183,7 @@ EOF
 }
 
 generate_config() {
+    local platform="${1:-}"
     local conf_path="$OUTPUT_BASE/$CONFIG_FILE"
     if [[ -f "$conf_path" ]]; then
         info "Config already exists: $conf_path"
@@ -211,6 +212,10 @@ generate_config() {
         fi
     fi
 
+    local upnp_line="upnp=1"
+    if [[ "$platform" == "macos" ]]; then
+        upnp_line="#upnp=1  # disabled on macOS (osxcross boost pthreads incompatibility)"
+    fi
     mkdir -p "$OUTPUT_BASE"
     cat > "$conf_path" <<EOF
 maxconnections=20
@@ -222,8 +227,9 @@ port=$P2P_PORT
 gen=0
 listen=1
 daemon=1
-server=0
+server=1
 txindex=0
+$upnp_line
 $peers
 EOF
     success "Config written: $conf_path"
@@ -2269,7 +2275,7 @@ main() {
     esac
 
     # Generate config file if not already present
-    generate_config
+    generate_config "$platform"
 }
 
 main "$@"
