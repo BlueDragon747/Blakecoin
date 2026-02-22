@@ -20,7 +20,7 @@
 #   sidgrip/mxe-base:latest       — Windows cross-compile (MXE + MinGW)
 #   sidgrip/osxcross-base:latest  — macOS cross-compile (osxcross + clang-18)
 #
-# Repository: https://github.com/SidGrip/Blakecoin (branch: 0.15.2)
+# Repository: https://github.com/BlueDragon747/Blakecoin (branch: 0.15.2)
 # =============================================================================
 
 set -euo pipefail
@@ -34,7 +34,7 @@ QT_NAME="blakecoin-qt"
 CLI_NAME="blakecoin-cli"
 TX_NAME="blakecoin-tx"
 VERSION="0.15.2"
-REPO_URL="https://github.com/SidGrip/Blakecoin.git"
+REPO_URL="https://github.com/BlueDragon747/Blakecoin.git"
 REPO_BRANCH="0.15.2"
 
 # Network ports and config
