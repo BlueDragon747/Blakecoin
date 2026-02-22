@@ -186,7 +186,7 @@ Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker`
 
 | Image | Platform | Hub Size | Local Build Time |
 |-------|----------|----------|-----------------|
-| `sidgrip/daemon-base:18.04` | Linux native builds (daemon + Qt) | ~450 MB | ~10 min |
+| `sidgrip/native-base:18.04` | Linux native builds (daemon + Qt) | ~450 MB | ~10 min |
 | `sidgrip/appimage-base:22.04` | Linux AppImage | ~515 MB | ~15 min |
 | `sidgrip/mxe-base:latest` | Windows cross-compile | ~4.2 GB | ~2-4 hours |
 | `sidgrip/osxcross-base:latest` | macOS cross-compile | ~7.2 GB | ~1-2 hours |

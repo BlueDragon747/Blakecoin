@@ -9,7 +9,7 @@
 #   See ./build.sh --help for full usage.
 #
 # Docker Hub images (prebuilt):
-#   sidgrip/daemon-base:18.04      — Linux native build environment
+#   sidgrip/native-base:18.04      — Linux native build environment
 #   sidgrip/mxe-base:latest        — Windows cross-compiler (MXE)
 #   sidgrip/osxcross-base:latest   — macOS cross-compiler (osxcross)
 #   sidgrip/appimage-base:22.04    — AppImage builder (Wayland compatible)
@@ -36,7 +36,7 @@ CONFIG_FILE="${COIN_NAME}.conf"
 CONFIG_DIR=".${COIN_NAME}"
 
 # Docker images
-DOCKER_NATIVE="sidgrip/daemon-base:18.04"
+DOCKER_NATIVE="sidgrip/native-base:18.04"
 DOCKER_WINDOWS="sidgrip/mxe-base:latest"
 DOCKER_MACOS="sidgrip/osxcross-base:latest"
 DOCKER_APPIMAGE="sidgrip/appimage-base:22.04"
@@ -104,8 +104,8 @@ Examples:
   ./build.sh --native --daemon                 # Daemon only
 
   # Native Linux with Docker
-  ./build.sh --native --both --pull-docker     # Use daemon-base from Docker Hub
-  ./build.sh --native --both --build-docker    # Build daemon-base locally first
+  ./build.sh --native --both --pull-docker     # Use native-base from Docker Hub
+  ./build.sh --native --both --build-docker    # Build native-base locally first
 
   # Cross-compile (Docker required — choose --pull-docker or --build-docker)
   ./build.sh --windows --qt --pull-docker      # Pull mxe-base from Docker Hub
@@ -114,13 +114,13 @@ Examples:
   ./build.sh --appimage --pull-docker          # Pull appimage-base from Docker Hub
 
 Docker Hub images (prebuilt, used with --pull-docker):
-  sidgrip/daemon-base:18.04            Linux build environment (~320 MB)
+  sidgrip/native-base:18.04            Linux build environment (~320 MB)
   sidgrip/mxe-base:latest              Windows MXE cross-compiler (~4.2 GB)
   sidgrip/osxcross-base:latest         macOS osxcross cross-compiler (~7.2 GB)
   sidgrip/appimage-base:22.04          AppImage builder (~515 MB)
 
 Local Dockerfiles (used with --build-docker):
-  docker/Dockerfile.daemon-base        Linux build environment (~5 min)
+  docker/Dockerfile.native-base        Linux build environment (~5 min)
   docker/Dockerfile.mxe-base           Windows MXE cross-compiler (~2-4 hours)
   docker/Dockerfile.osxcross-base      macOS osxcross cross-compiler (~1-2 hours)
   docker/Dockerfile.appimage-base      AppImage builder (~15 min)
@@ -1372,7 +1372,7 @@ build_native_docker() {
 
     mkdir -p "$output_dir/daemon" "$output_dir/qt"
 
-    # Both daemon and Qt use daemon-base:18.04 (has build tools + Qt5 dev packages)
+    # Both daemon and Qt use native-base:18.04 (has build tools + Qt5 dev packages)
 
     if [[ "$target" == "daemon" || "$target" == "both" ]]; then
         local container_name="native-${COIN_NAME}-daemon"
@@ -1384,7 +1384,7 @@ build_native_docker() {
         echo "  Image:  $DOCKER_NATIVE"
         echo ""
 
-        ensure_docker_image "$DOCKER_NATIVE" "$docker_mode" "Dockerfile.daemon-base"
+        ensure_docker_image "$DOCKER_NATIVE" "$docker_mode" "Dockerfile.native-base"
         docker rm -f "$container_name" 2>/dev/null || true
 
         # Mount local source into container (uses already-patched local files)
@@ -1460,7 +1460,7 @@ cp '"$DAEMON_NAME"' /build/output/daemon/
         echo "  Image:  $DOCKER_NATIVE (Ubuntu 18.04)"
         echo ""
 
-        ensure_docker_image "$DOCKER_NATIVE" "$docker_mode" "Dockerfile.daemon-base"
+        ensure_docker_image "$DOCKER_NATIVE" "$docker_mode" "Dockerfile.native-base"
         docker rm -f "$container_name" 2>/dev/null || true
 
         # Mount local source into container (uses already-patched local files)
