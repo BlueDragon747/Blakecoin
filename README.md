@@ -69,6 +69,11 @@ Other options:
 
 ## Platform Build Instructions
 
+```bash
+git clone https://github.com/SidGrip/Blakecoin.git
+cd Blakecoin
+```
+
 ### Linux (Docker)
 
 Use `--pull-docker` to pull prebuilt images from Docker Hub, or `--build-docker` to build them locally from the Dockerfiles in `docker/`.
