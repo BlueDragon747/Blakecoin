@@ -14,7 +14,7 @@
 #   sidgrip/osxcross-base:latest   — macOS cross-compiler (osxcross)
 #   sidgrip/appimage-base:22.04    — AppImage builder (Wayland compatible)
 #
-# Repository: https://github.com/SidGrip/Blakecoin
+# Repository: https://github.com/BlueDragon747/Blakecoin
 # =============================================================================
 
 set -euo pipefail
@@ -25,7 +25,7 @@ COIN_NAME="blakecoin"
 COIN_NAME_UPPER="Blakecoin"
 DAEMON_NAME="blakecoind"
 QT_NAME="blakecoin-qt"
-REPO_URL="https://github.com/SidGrip/Blakecoin.git"
+REPO_URL="https://github.com/BlueDragon747/Blakecoin.git"
 REPO_BRANCH="master"
 
 # Network ports and config

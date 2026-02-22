@@ -15,7 +15,7 @@ Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://g
 | Network Info | |
 |---|---|
 | Algorithm | Blake-256 (8 rounds) |
-| Block time | 2 minutes |
+| Block time | 3 minutes |
 | Block reward | 25 BLC |
 | Difficulty retarget | Every 20 blocks |
 | Default port | 8773 |
@@ -27,7 +27,7 @@ Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://g
 ## Quick Start (Ubuntu 18.04)
 
 ```bash
-git clone https://github.com/SidGrip/Blakecoin.git
+git clone https://github.com/BlueDragon747/Blakecoin.git
 cd Blakecoin
 sudo add-apt-repository ppa:bitcoin/bitcoin
 sudo apt update
@@ -70,7 +70,7 @@ Other options:
 ## Platform Build Instructions
 
 ```bash
-git clone https://github.com/SidGrip/Blakecoin.git
+git clone https://github.com/BlueDragon747/Blakecoin.git
 cd Blakecoin
 ```
 
