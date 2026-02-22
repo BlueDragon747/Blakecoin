@@ -192,8 +192,8 @@ generate_config() {
 
     info "Generating $CONFIG_FILE..."
     local rpcuser rpcpassword peers=""
-    rpcuser="rpcuser=$(LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c 10)"
-    rpcpassword="rpcpassword=$(LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c 22)"
+    rpcuser="rpcuser=$(head -c 100 /dev/urandom | LC_ALL=C tr -cd '[:alnum:]' | head -c 10)"
+    rpcpassword="rpcpassword=$(head -c 200 /dev/urandom | LC_ALL=C tr -cd '[:alnum:]' | head -c 22)"
 
     # Ensure curl is available for peer fetching
     if ! command -v curl &>/dev/null; then
