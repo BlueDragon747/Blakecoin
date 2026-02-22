@@ -43,3 +43,4 @@ outputs/
 
 # macOS SDK (Apple license — not redistributable)
 docker/sdk/*.sdk.tar.*
+build.sh
