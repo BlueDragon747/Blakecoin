@@ -192,8 +192,8 @@ generate_config() {
 
     info "Generating $CONFIG_FILE..."
     local rpcuser rpcpassword peers=""
-    rpcuser="rpcuser=$(head -c 100 /dev/urandom | tr -cd '[:alnum:]' | head -c 10)"
-    rpcpassword="rpcpassword=$(head -c 200 /dev/urandom | tr -cd '[:alnum:]' | head -c 22)"
+    rpcuser="rpcuser=$(LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c 10)"
+    rpcpassword="rpcpassword=$(LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c 22)"
 
     # Ensure curl is available for peer fetching
     if ! command -v curl &>/dev/null; then
@@ -209,7 +209,7 @@ generate_config() {
         nodes=$(curl -s "https://chainz.cryptoid.info/${CHAINZ_CODE}/api.dws?q=nodes" 2>/dev/null || true)
         if [[ -n "$nodes" ]]; then
             # Filter '^0\.' to exclude version strings (e.g. 0.8.9.7 from JSON "subver") — no valid public IP starts with 0
-            peers=$(grep -oP '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' <<< "$nodes" | grep -v '^0\.' | sed 's/^/addnode=/' || true)
+            peers=$(grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' <<< "$nodes" | grep -v '^0\.' | sed 's/^/addnode=/' || true)
         fi
     fi
 
