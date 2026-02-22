@@ -234,6 +234,19 @@ $upnp_line
 $peers
 EOF
     success "Config written: $conf_path"
+
+    # Install config to platform data directory if running natively
+    local data_dir=""
+    case "$(uname -s)" in
+        Darwin)  data_dir="$HOME/Library/Application Support/$COIN_NAME_UPPER" ;;
+        Linux)   data_dir="$HOME/$CONFIG_DIR" ;;
+        MINGW*|MSYS*) data_dir="${APPDATA:-}/$COIN_NAME_UPPER" ;;
+    esac
+    if [[ -n "$data_dir" && ! -f "$data_dir/$CONFIG_FILE" ]]; then
+        mkdir -p "$data_dir"
+        cp "$conf_path" "$data_dir/$CONFIG_FILE"
+        info "Config installed: $data_dir/$CONFIG_FILE"
+    fi
 }
 
 ensure_docker_image() {
