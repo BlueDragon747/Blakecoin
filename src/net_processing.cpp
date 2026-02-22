@@ -32,6 +32,8 @@
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
+#include <array>
+
 #if defined(NDEBUG)
 # error "Blakecoin cannot be compiled without assertions."
 #endif
@@ -41,7 +43,7 @@ std::atomic<int64_t> nTimeBestReceived(0); // Used only to inform the wallet of 
 struct IteratorComparator
 {
     template<typename I>
-    bool operator()(const I& a, const I& b)
+    bool operator()(const I& a, const I& b) const
     {
         return &(*a) < &(*b);
     }

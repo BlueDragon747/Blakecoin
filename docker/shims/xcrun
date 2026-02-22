@@ -1,0 +1,47 @@
+#!/bin/sh
+# xcrun shim for osxcross cross-compilation environment
+# Handles all argument patterns that Qt5 default_pre.prf and sdk.prf use:
+#   xcrun --show-sdk-path
+#   xcrun --show-sdk-version
+#   xcrun --show-sdk-platform-path
+#   xcrun --sdk macosx --show-sdk-path
+#   xcrun --sdk macosx --show-sdk-version
+#   xcrun --sdk macosx --show-sdk-platform-path
+#   xcrun -sdk macosx -find <tool>
+#   xcrun -find <tool>
+#   xcrun xcodebuild -license check
+#   xcrun xcodebuild -version
+
+SDK_PATH="/opt/osxcross/target/SDK/MacOSX26.2.sdk"
+SDK_VERSION="26.2"
+PLATFORM_PATH="/opt/osxcross/target/SDK"
+
+# Scan all arguments for flags we handle
+cmd=""
+cmd_args=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --show-sdk-path|-show-sdk-path)
+            echo "$SDK_PATH"; exit 0 ;;
+        --show-sdk-version|-show-sdk-version)
+            echo "$SDK_VERSION"; exit 0 ;;
+        --show-sdk-platform-path|-show-sdk-platform-path)
+            echo "$PLATFORM_PATH"; exit 0 ;;
+        --sdk|-sdk)
+            shift ;; # skip --sdk and its value
+        --find|-find)
+            shift; which "$1" 2>/dev/null || echo "/usr/bin/$1"; exit 0 ;;
+        *)
+            if [ -z "$cmd" ]; then
+                cmd="$1"
+            else
+                cmd_args="$cmd_args $1"
+            fi ;;
+    esac
+    shift
+done
+
+# Execute any command that was passed (e.g., xcodebuild -license check)
+if [ -n "$cmd" ]; then
+    exec "$cmd" $cmd_args
+fi

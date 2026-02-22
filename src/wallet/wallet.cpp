@@ -31,7 +31,10 @@
 #include "ui_interface.h"
 #include "utilmoneystr.h"
 
+#include <algorithm>
 #include <assert.h>
+#include <limits>
+#include <random>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
@@ -2367,7 +2370,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     std::vector<CInputCoin> vValue;
     CAmount nTotalLower = 0;
 
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+    std::shuffle(vCoins.begin(), vCoins.end(), std::default_random_engine(GetRandInt(std::numeric_limits<int>::max())));
 
     for (const COutput &output : vCoins)
     {

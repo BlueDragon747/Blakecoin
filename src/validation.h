@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <list>
 #include <map>
 #include <set>
 #include <stdint.h>
