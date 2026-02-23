@@ -27,6 +27,7 @@
 #endif
 
 #include <algorithm>
+#include <stdexcept>
 
 #ifdef _WIN32
 #include <boost/thread/locks.hpp>

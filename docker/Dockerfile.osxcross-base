@@ -1,0 +1,280 @@
+# osxcross base image for macOS cross-compilation from Linux
+# Provides: clang cross-compiler targeting x86_64-apple-darwin + cross-compiled libs
+# Build: docker build -t sidgrip/osxcross-base:latest -f Dockerfile.osxcross-base .
+#
+# This image bundles:
+# - osxcross (clang-based macOS cross-compiler)
+# - MacOSX 26.2 SDK
+# - Cross-compiled: Boost, OpenSSL, BerkeleyDB 4.8, miniupnpc, libqrencode
+# - Cross-compiled: Qt5 (for -qt wallet builds)
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV MACOSX_DEPLOYMENT_TARGET=11.0
+ENV OSXCROSS_SDK=MacOSX26.2.sdk
+
+# Install build dependencies + clang-18 (needed for _Float16 support in macOS 26.2 SDK)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    curl \
+    wget \
+    python3 \
+    libssl-dev \
+    libxml2-dev \
+    lzma-dev \
+    liblzma-dev \
+    libz-dev \
+    libbz2-dev \
+    cpio \
+    zlib1g-dev \
+    patch \
+    xz-utils \
+    pkg-config \
+    autoconf \
+    automake \
+    libtool \
+    zip \
+    gnupg \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install clang-18 from LLVM apt repo (Ubuntu 22.04's clang-14 doesn't support _Float16)
+RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
+        > /etc/apt/sources.list.d/llvm-18.list && \
+    apt-get update && apt-get install -y \
+    clang-18 llvm-18-dev libclang-18-dev \
+    && rm -rf /var/lib/apt/lists/* && \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100 && \
+    update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-18 100
+
+# Build osxcross
+RUN git clone --depth 1 https://github.com/tpoechtrager/osxcross /opt/osxcross
+
+# Copy SDK tarball
+COPY sdk/MacOSX26.2.sdk.tar.xz /opt/osxcross/tarballs/
+
+# Build osxcross toolchain
+RUN cd /opt/osxcross && \
+    UNATTENDED=1 ./build.sh && \
+    ./build_compiler_rt.sh || true
+
+# osxcross creates tools named x86_64-apple-darwin25.2-* (minor version from SDK)
+ENV PATH="/opt/osxcross/target/bin:${PATH}"
+ENV OSXCROSS_HOST="x86_64-apple-darwin25.2"
+ENV CC="x86_64-apple-darwin25.2-clang"
+ENV CXX="x86_64-apple-darwin25.2-clang++"
+ENV AR="x86_64-apple-darwin25.2-ar"
+ENV RANLIB="x86_64-apple-darwin25.2-ranlib"
+ENV STRIP="x86_64-apple-darwin25.2-strip"
+
+# Create cross-compile prefix directory
+ENV PREFIX="/opt/osxcross/target/macports/pkgs/opt/local"
+RUN mkdir -p "$PREFIX/lib" "$PREFIX/include"
+
+# Cross-compile OpenSSL 1.1.1 (CC/CXX/AR/RANLIB set by ENV above)
+RUN cd /tmp && \
+    curl -LO https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar xf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
+    ./Configure darwin64-x86_64-cc \
+        --prefix="$PREFIX" \
+        no-shared \
+        no-tests && \
+    make -j$(nproc) && \
+    make install_sw && \
+    cd / && rm -rf /tmp/openssl*
+
+# Cross-compile BerkeleyDB 4.8
+RUN cd /tmp && \
+    curl -LO https://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz && \
+    tar xf db-4.8.30.NC.tar.gz && \
+    cd db-4.8.30.NC/build_unix && \
+    # Fix BDB 4.8 for modern macOS SDK: BDB's dbinc/atomic.h defines macros
+    # (atomic_init, __atomic_compare_exchange) that conflict with the SDK's
+    # C++ <atomic> header. Rename them across all BDB source files.
+    sed -i 's/__atomic_compare_exchange/__atomic_compare_exchange_db/g' ../dbinc/atomic.h && \
+    find .. -name '*.h' -o -name '*.c' -o -name '*.cpp' | xargs sed -i 's/\batomic_init\b/bdb_atomic_init/g' && \
+    CXXFLAGS="-O2 -std=c++17 -stdlib=libc++" \
+    ../dist/configure \
+        --host=x86_64-apple-darwin25.2 \
+        --prefix="$PREFIX" \
+        --enable-cxx \
+        --disable-shared \
+        --disable-replication \
+        --disable-atomicsupport \
+        --with-mutex=POSIX/pthreads && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/db-4.8*
+
+# Cross-compile Boost 1.81 (header-only + system/filesystem/thread/program_options)
+RUN cd /tmp && \
+    curl -L -o boost_1_81_0.tar.bz2 https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.bz2 && \
+    tar xf boost_1_81_0.tar.bz2 && \
+    cd boost_1_81_0 && \
+    ./bootstrap.sh --prefix="$PREFIX" && \
+    printf 'using clang : darwin : x86_64-apple-darwin25.2-clang++\n  : <cxxflags>"-stdlib=libc++"\n    <linkflags>"-stdlib=libc++"\n    <archiver>/opt/osxcross/target/bin/x86_64-apple-darwin25.2-ar\n    <ranlib>/opt/osxcross/target/bin/x86_64-apple-darwin25.2-ranlib\n;\n' > user-config.jam && \
+    ./b2 \
+        --user-config=user-config.jam \
+        --prefix="$PREFIX" \
+        toolset=clang-darwin \
+        target-os=darwin \
+        link=static \
+        threading=multi \
+        --with-system \
+        --with-filesystem \
+        --with-thread \
+        --with-program_options \
+        --with-chrono \
+        --with-test \
+        -j$(nproc) \
+        install && \
+    cd / && rm -rf /tmp/boost*
+
+# Ensure all static libraries have macOS symbol tables
+RUN for lib in $PREFIX/lib/lib*.a; do \
+        x86_64-apple-darwin25.2-ranlib "$lib" 2>/dev/null || true; \
+    done
+
+# Cross-compile miniupnpc
+RUN cd /tmp && \
+    curl -LO https://miniupnp.tuxfamily.org/files/miniupnpc-2.2.5.tar.gz && \
+    tar xf miniupnpc-2.2.5.tar.gz && \
+    cd miniupnpc-2.2.5 && \
+    cmake -B build \
+        -DCMAKE_SYSTEM_NAME=Darwin \
+        -DCMAKE_C_COMPILER=x86_64-apple-darwin25.2-clang \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DUPNPC_BUILD_SHARED=OFF \
+        -DUPNPC_BUILD_TESTS=OFF \
+        -DUPNPC_BUILD_SAMPLE=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd / && rm -rf /tmp/miniupnpc*
+
+# Cross-compile libqrencode (from GitHub - fukuchi.org downloads unreliable)
+RUN cd /tmp && \
+    git clone --depth 1 --branch v4.1.1 https://github.com/fukuchi/libqrencode.git qrencode-4.1.1 && \
+    cd qrencode-4.1.1 && \
+    autoreconf -fi && \
+    ./configure \
+        --host=x86_64-apple-darwin25.2 \
+        --prefix="$PREFIX" \
+        --enable-static \
+        --disable-shared \
+        --without-tools && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/qrencode*
+
+# Install shim scripts for Xcode tools that Qt5 default_pre.prf expects at /usr/bin/*
+# Qt5 hardcodes /usr/bin/xcode-select, /usr/bin/xcrun, /usr/bin/xcodebuild
+# osxcross also installs its own xcodebuild in target/bin/ that we must overwrite
+COPY shims/xcode-select /usr/bin/xcode-select
+COPY shims/xcodebuild /usr/bin/xcodebuild
+COPY shims/xcrun /usr/bin/xcrun
+RUN chmod +x /usr/bin/xcode-select /usr/bin/xcodebuild /usr/bin/xcrun && \
+    rm -f /opt/osxcross/target/bin/xcodebuild && \
+    cp /usr/bin/xcodebuild /opt/osxcross/target/bin/xcodebuild
+
+# Copy Qt5 patches for osxcross cross-compilation
+COPY shims/sdk.prf /tmp/qt5-patches/sdk.prf
+COPY shims/sdk.mk /tmp/qt5-patches/sdk.mk
+COPY shims/default_pre.prf /tmp/qt5-patches/default_pre.prf
+
+# Cross-compile Qt5 (minimal — Core, Gui, Widgets, Network, DBus stub)
+RUN cd /tmp && \
+    curl -LO https://download.qt.io/archive/qt/5.15/5.15.12/single/qt-everywhere-opensource-src-5.15.12.tar.xz && \
+    tar xf qt-everywhere-opensource-src-5.15.12.tar.xz && \
+    cd qt-everywhere-src-5.15.12 && \
+    # Fix pngpriv.h: fp.h removed in macOS 26 SDK, replace with math.h (patch all copies)
+    find . -name pngpriv.h -exec sed -i 's|<fp.h>|<math.h>|g' {} + && \
+    # Replace sdk.prf, sdk.mk, and default_pre.prf to skip Xcode/xcrun calls for cross-compilation
+    cp /tmp/qt5-patches/sdk.prf qtbase/mkspecs/features/mac/sdk.prf && \
+    cp /tmp/qt5-patches/sdk.mk qtbase/mkspecs/features/mac/sdk.mk && \
+    cp /tmp/qt5-patches/default_pre.prf qtbase/mkspecs/features/mac/default_pre.prf && \
+    # Create cross-compile mkspec for osxcross
+    mkdir -p qtbase/mkspecs/macx-osxcross && \
+    printf '%s\n' \
+        'MAKEFILE_GENERATOR = UNIX' \
+        'CONFIG += app_bundle incremental' \
+        'QMAKE_INCREMENTAL_STYLE = sublib' \
+        '' \
+        'include(../common/macx.conf)' \
+        'include(../common/gcc-base-mac.conf)' \
+        'include(../common/clang.conf)' \
+        'include(../common/clang-mac.conf)' \
+        '' \
+        'QMAKE_MAC_SDK = macosx' \
+        'QMAKE_MAC_SDK_PATH = /opt/osxcross/target/SDK/MacOSX26.2.sdk' \
+        'QMAKE_MAC_SDK_VERSION = 26.2' \
+        'QMAKE_MACOSX_DEPLOYMENT_TARGET = 11.0' \
+        '' \
+        'QMAKE_CC = x86_64-apple-darwin25.2-clang' \
+        'QMAKE_CXX = x86_64-apple-darwin25.2-clang++' \
+        'QMAKE_LINK = x86_64-apple-darwin25.2-clang++' \
+        'QMAKE_LINK_SHLIB = x86_64-apple-darwin25.2-clang++' \
+        'QMAKE_AR = x86_64-apple-darwin25.2-ar cqs' \
+        'QMAKE_RANLIB = x86_64-apple-darwin25.2-ranlib' \
+        'QMAKE_STRIP = x86_64-apple-darwin25.2-strip' \
+        'QMAKE_INSTALL_NAME_TOOL = x86_64-apple-darwin25.2-install_name_tool' \
+        '' \
+        'load(qt_config)' \
+        > qtbase/mkspecs/macx-osxcross/qmake.conf && \
+    printf '%s\n' '#include "../macx-clang/qplatformdefs.h"' \
+        > qtbase/mkspecs/macx-osxcross/qplatformdefs.h && \
+    ./configure \
+        -prefix "$PREFIX/qt5" \
+        -xplatform macx-osxcross \
+        -device-option CROSS_COMPILE=x86_64-apple-darwin25.2- \
+        -opensource -confirm-license \
+        -release \
+        -static \
+        -no-rpath \
+        -no-dbus \
+        -no-opengl \
+        -skip qtwebengine \
+        -skip qt3d \
+        -skip qtmultimedia \
+        -skip qtwebchannel \
+        -skip qtwebsockets \
+        -skip qtconnectivity \
+        -skip qtgamepad \
+        -skip qtlocation \
+        -skip qtsensors \
+        -skip qtserialport \
+        -skip qtwayland \
+        -skip qtx11extras \
+        -nomake examples \
+        -nomake tests \
+        -qt-zlib \
+        -qt-libpng \
+        -qt-libjpeg \
+        -qt-freetype \
+        -qt-pcre \
+        -qt-harfbuzz \
+        -I "$PREFIX/include" \
+        -L "$PREFIX/lib" \
+        -no-pkg-config && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/qt-everywhere*
+
+# Clean up build artifacts to minimize image size
+RUN rm -rf /tmp/* /var/lib/apt/lists/* /opt/osxcross/tarballs/* && \
+    apt-get clean 2>/dev/null || true
+
+# Set up pkg-config for cross-compiled libraries
+ENV PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/qt5/lib/pkgconfig"
+ENV PKG_CONFIG_SYSROOT_DIR=""
+
+# Working directory for builds
+WORKDIR /build
+
+# Keep container alive for interactive use
+CMD ["bash"]

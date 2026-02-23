@@ -656,6 +656,8 @@ int main(int argc, char *argv[])
     assert(!networkStyle.isNull());
     // Allow for separate UI settings for testnets
     QApplication::setApplicationName(networkStyle->getAppName());
+    // Set desktop filename for Wayland app_id matching (GNOME taskbar icon)
+    QGuiApplication::setDesktopFileName("blakecoin-qt");
     // Re-initialize translations after changing application name (language in network-specific settings can be different)
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 

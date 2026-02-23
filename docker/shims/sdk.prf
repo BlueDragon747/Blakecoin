@@ -1,0 +1,20 @@
+# sdk.prf replacement for osxcross cross-compilation
+# Provides xcodeSDKInfo() and SDK variables without calling xcrun
+
+isEmpty(QMAKE_MAC_SDK): \
+    QMAKE_MAC_SDK = macosx
+
+defineReplace(xcodeSDKInfo) {
+    info = $$1
+    equals(info, "Path"): \
+        return(/opt/osxcross/target/SDK/MacOSX26.2.sdk)
+    equals(info, "PlatformPath"): \
+        return(/opt/osxcross/target/SDK)
+    equals(info, "SDKVersion"): \
+        return(26.2)
+    return()
+}
+
+QMAKE_MAC_SDK_PATH = /opt/osxcross/target/SDK/MacOSX26.2.sdk
+QMAKE_MAC_SDK_PLATFORM_PATH = /opt/osxcross/target/SDK
+QMAKE_MAC_SDK_VERSION = 26.2

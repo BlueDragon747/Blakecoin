@@ -5,6 +5,7 @@
 #ifndef BITCOIN_BENCH_BENCH_H
 #define BITCOIN_BENCH_BENCH_H
 
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>

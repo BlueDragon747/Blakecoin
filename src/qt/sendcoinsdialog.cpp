@@ -24,6 +24,7 @@
 #include "policy/fees.h"
 #include "wallet/wallet.h"
 
+#include <array>
 #include <QFontMetrics>
 #include <QMessageBox>
 #include <QScrollBar>

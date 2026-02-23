@@ -1,0 +1,3 @@
+#!/bin/sh
+# xcode-select shim for osxcross cross-compilation environment
+echo /opt/osxcross/target/SDK

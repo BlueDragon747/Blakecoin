@@ -64,6 +64,8 @@
 #include <QUrlQuery>
 #endif
 
+using namespace boost::placeholders;
+
 const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
 #if defined(Q_OS_MAC)
         "macosx"

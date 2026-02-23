@@ -1,0 +1,41 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Build essentials + all dependencies for cryptocurrency QT wallets
+# Ubuntu 22.04 has OpenSSL 3.0, Boost 1.74, Qt 5.15
+RUN apt-get update && apt-get install -y \
+    build-essential g++ make autoconf automake libtool pkg-config \
+    git wget curl \
+    libssl-dev \
+    libboost-all-dev \
+    libminiupnpc-dev \
+    qtbase5-dev libqt5gui5 libqt5core5a libqt5dbus5 \
+    qttools5-dev qttools5-dev-tools qt5-qmake \
+    libprotobuf-dev protobuf-compiler \
+    libqrencode-dev \
+    libevent-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build BerkeleyDB 4.8 from source (Bitcoin PPA unavailable for 22.04)
+RUN wget -q "https://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz" && \
+    tar xzf db-4.8.30.NC.tar.gz && \
+    cd db-4.8.30.NC/build_unix && \
+    sed -i 's/__atomic_compare_exchange/__atomic_compare_exchange_db/' ../dbinc/atomic.h && \
+    ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=/usr/local && \
+    make -j$(nproc) && make install && \
+    cd / && rm -rf db-4.8.30.NC*
+
+# Install appimagetool
+RUN wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+    -O /usr/local/bin/appimagetool && \
+    chmod +x /usr/local/bin/appimagetool
+
+# Create build directory
+RUN mkdir -p /build
+
+WORKDIR /build
+
+# Verify toolchain
+RUN g++ --version && qmake -version && \
+    echo "AppImage base image (22.04) ready"

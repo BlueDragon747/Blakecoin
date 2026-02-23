@@ -1,33 +1,35 @@
-Forked from Bitcoin reference wallet 0.15.2
+<p align="center">
+  <img src="src/qt/res/icons/bitcoin.png" alt="Blakecoin" width="95">
+</p>
 
-Blakecoin Wallet
+## About Blakecoin (0.15.2)
 
-Pre-Release Initial backport to 0.15.2 full sync but wire change/protocol changes effect p2p to 0.8.6, old wallet bootstrap and WiF compatible minor ui/ux changes todo
+Blakecoin is the original Blake-256 coin and parent chain for [Photon](https://github.com/BlueDragon747/photon), [BlakeBitcoin](https://github.com/BlakeBitcoin/BlakeBitcoin), [Electron](https://github.com/BlueDragon747/Electron-ELT), [Universal Molecule](https://github.com/BlueDragon747/universalmol), and [Lithium](https://github.com/BlueDragon747/lithium). It is a digital currency using peer-to-peer technology with no central authority.
 
-https://www.blakecoin.org
+This is the **0.15.2 fork** — a full backport to Bitcoin Core 0.15.2 with HD wallet support, modern RPC, and autotools build system.
 
-Blake-256(optimized) is faster than Scrypt, SHA-256D, Keccak, Groestl
+- Uses the **Blake-256** hashing algorithm — a SHA-3 candidate faster than Scrypt, SHA-256D, Keccak, and Groestl
+- Forked from **Bitcoin Core 0.15.2** (autotools build system, HD wallets)
+- Optimized 8-round Blake-256 with reduced double-hashing for efficiency
+- Maintains proven ECDSA security
+- Website: https://blakecoin.org
 
-The algorithm was written as a candidate for sha3, Based on round one candidate code from the sphlib 2.1 and reduced rounds to 8.
-
-Tweaks Removed some of the double hashing from the wallet as it is wasteful on compute, No changes to the ecdsa public/private function as that has proven to be secure so far on bitcoin.
-
-
-What is Blakecoin?
-
-Blakecoin is an experimental new digital currency that enables instant payments to
-anyone, anywhere in the world. Blakecoin uses peer-to-peer technology to operate
-with no central authority: managing transactions and issuing money are carried
-out collectively by the network.
-
-Ubuntu 20.04 dependancies that are used on the Linux build machine:
+| Network Info | |
+|---|---|
+| Algorithm | Blake-256 (8 rounds) |
+| Block time | 3 minutes |
+| Block reward | 25 BLC |
+| Difficulty retarget | Every 20 blocks |
+| Default port | 8773 |
+| RPC port | 8772 |
+| Max supply | 7,000,000,000 BLC |
 
 ---
 
+## Multi-Coin Builder
 
-License
+For building wallets for all Blake-family coins [Blakecoin](https://github.com/BlueDragon747/Blakecoin), [Photon](https://github.com/BlueDragon747/photon), [BlakeBitcoin](https://github.com/BlakeBitcoin/BlakeBitcoin), [Electron](https://github.com/BlueDragon747/Electron-ELT), [Universal Molecule](https://github.com/BlueDragon747/universalmol), [Lithium](https://github.com/BlueDragon747/lithium), see the [Blakestream Installer](https://github.com/SidGrip/Blakestream-Installer).
 
-Blakecoin is released under the terms of the MIT license. See `COPYING` for more
-information or see http://opensource.org/licenses/MIT.
+## License
 
-
+Blakecoin is released under the terms of the MIT license. See `COPYING` for more information.

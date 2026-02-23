@@ -14,8 +14,11 @@ wallet_packages=bdb
 
 upnp_packages=miniupnpc
 
-darwin_native_packages = native_biplist native_ds_store native_mac_alias
+# native_biplist, native_ds_store, native_mac_alias are for .dmg creation only
+# (download URLs are dead — bitbucket repos removed)
+# We only need the binary, not a .dmg package
+darwin_native_packages =
 
 ifneq ($(build_os),darwin)
-darwin_native_packages += native_cctools native_cdrkit native_libdmg-hfsplus
+darwin_native_packages += native_cctools
 endif
