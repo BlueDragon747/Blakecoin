@@ -1,4 +1,5 @@
 #include "clientmodel.h"
+#include <boost/bind.hpp>
 
 #include "guiconstants.h"
 #include "optionsmodel.h"

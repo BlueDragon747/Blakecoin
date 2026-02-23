@@ -1,4 +1,5 @@
 #include "walletmodel.h"
+#include <boost/bind.hpp>
 #include "guiconstants.h"
 #include "optionsmodel.h"
 #include "addresstablemodel.h"

@@ -1,0 +1,119 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install MXE build dependencies
+RUN apt-get update && apt-get install -y \
+    autoconf automake autopoint bash bison bzip2 curl flex g++ g++-multilib \
+    gettext git gperf intltool libc6-dev-i386 libgdk-pixbuf2.0-dev \
+    libltdl-dev libgl-dev libpcre3-dev libssl-dev libtool-bin \
+    libxml-parser-perl lzip make openssl p7zip-full patch perl \
+    python3 python3-mako python3-packaging python-is-python3 ruby sed unzip wget \
+    xz-utils pkg-config zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone MXE
+RUN git clone https://github.com/mxe/mxe.git /opt/mxe
+
+WORKDIR /opt/mxe
+
+# Build MXE with required packages for cryptocurrency wallets
+# This is the slow step (2-4 hours) — Docker caches it
+RUN make MXE_TARGETS=x86_64-w64-mingw32.static \
+    cc qt5 boost openssl db miniupnpc libqrencode protobuf libevent \
+    -j$(nproc) JOBS=$(nproc)
+
+# Add MXE to PATH
+ENV PATH="/opt/mxe/usr/bin:${PATH}"
+
+# Create build directory
+RUN mkdir -p /build
+
+WORKDIR /build
+
+# Verify MXE installation
+RUN x86_64-w64-mingw32.static-g++ --version && \
+    echo "MXE base image ready"
+
+# =====================================================================
+# Cross-compile compatible dependency versions into /opt/compat
+# MXE ships Boost 1.90/OpenSSL 3.6/BDB 18 which are incompatible with
+# old Bitcoin forks. We build compatible versions using MXE's compiler.
+# =====================================================================
+
+ENV MXE_INC="/opt/mxe/usr/x86_64-w64-mingw32.static/include"
+ENV MXE_LIB="/opt/mxe/usr/x86_64-w64-mingw32.static/lib"
+
+# Cross-compile OpenSSL 1.1.1w
+RUN cd /tmp && \
+    curl -LO https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar xf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
+    ./Configure mingw64 \
+        --cross-compile-prefix=x86_64-w64-mingw32.static- \
+        --prefix=/opt/compat \
+        no-shared no-tests && \
+    make -j$(nproc) && \
+    make install_sw && \
+    cd / && rm -rf /tmp/openssl*
+
+# Cross-compile BerkeleyDB 4.8.30
+RUN cd /tmp && \
+    curl -LO https://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz && \
+    tar xf db-4.8.30.NC.tar.gz && \
+    cd db-4.8.30.NC/build_unix && \
+    ../dist/configure \
+        --host=x86_64-w64-mingw32.static \
+        --prefix=/opt/compat \
+        --enable-cxx \
+        --enable-mingw \
+        --disable-shared \
+        --disable-replication \
+        --disable-atomicsupport \
+        CC=x86_64-w64-mingw32.static-gcc \
+        CXX=x86_64-w64-mingw32.static-g++ \
+        AR=x86_64-w64-mingw32.static-ar \
+        RANLIB=x86_64-w64-mingw32.static-ranlib && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/db-4.8*
+
+# Cross-compile Boost 1.81
+RUN cd /tmp && \
+    curl -L -o boost_1_81_0.tar.bz2 https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.bz2 && \
+    tar xf boost_1_81_0.tar.bz2 && \
+    cd boost_1_81_0 && \
+    ./bootstrap.sh && \
+    echo "using gcc : mingw : x86_64-w64-mingw32.static-g++ ;" > user-config.jam && \
+    ./b2 \
+        --user-config=user-config.jam \
+        --prefix=/opt/compat \
+        toolset=gcc-mingw \
+        target-os=windows \
+        address-model=64 \
+        variant=release \
+        link=static \
+        runtime-link=static \
+        threading=multi \
+        --with-system \
+        --with-filesystem \
+        --with-thread \
+        --with-program_options \
+        --with-chrono \
+        -j$(nproc) \
+        install && \
+    cd / && rm -rf /tmp/boost*
+
+# Fix miniupnpc: remove upnpc.c.obj (contains main()) which overrides wallet's main()
+RUN x86_64-w64-mingw32.static-ar d "$MXE_LIB/libminiupnpc.a" upnpc.c.obj
+
+# Move MXE's conflicting headers/libs aside so coins find /opt/compat versions
+RUN mkdir -p "$MXE_LIB/mxe_bak" && \
+    mv "$MXE_INC/boost" "$MXE_INC/boost.mxe.bak" && \
+    mv "$MXE_INC/openssl" "$MXE_INC/openssl.mxe.bak" && \
+    mv "$MXE_INC/db.h" "$MXE_INC/db.h.mxe.bak" && \
+    mv "$MXE_INC/db_cxx.h" "$MXE_INC/db_cxx.h.mxe.bak" && \
+    mv "$MXE_LIB"/libboost_* "$MXE_LIB/mxe_bak/" && \
+    mv "$MXE_LIB/libssl.a" "$MXE_LIB/mxe_bak/" && \
+    mv "$MXE_LIB/libcrypto.a" "$MXE_LIB/mxe_bak/" && \
+    mv "$MXE_LIB"/libdb*.a "$MXE_LIB/mxe_bak/" || true

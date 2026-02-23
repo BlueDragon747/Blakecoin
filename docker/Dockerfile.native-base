@@ -1,0 +1,34 @@
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Bitcoin PPA for BerkeleyDB 4.8 (best wallet compatibility)
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:bitcoin/bitcoin && \
+    apt-get update
+
+# Build essentials + all dependencies (daemon + Qt wallet)
+RUN apt-get install -y \
+    build-essential g++ make autoconf automake libtool pkg-config \
+    git wget curl \
+    libssl-dev \
+    libboost-all-dev \
+    libminiupnpc-dev \
+    libdb4.8-dev libdb4.8++-dev \
+    qtbase5-dev libqt5gui5 libqt5core5a libqt5dbus5 \
+    qttools5-dev qttools5-dev-tools qt5-qmake \
+    libprotobuf-dev protobuf-compiler \
+    libqrencode-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Qt5 as default (qtchooser needs this on 18.04)
+ENV QT_SELECT=qt5
+
+# Create build directory
+RUN mkdir -p /build
+
+WORKDIR /build
+
+# Verify toolchain
+RUN g++ --version && qmake -version && \
+    echo "Daemon base image (18.04) ready — daemon + Qt"

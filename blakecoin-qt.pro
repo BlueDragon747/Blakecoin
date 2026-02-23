@@ -6,12 +6,12 @@ INCLUDEPATH += src src/json src/qt
 QT += core gui network
 #DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN __NO_SYSTEM_INCLUDES
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
+DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_BIND_GLOBAL_PLACEHOLDERS
 CONFIG += no_include_pwd
 CONFIG += thread
 CONFIG += static
 
-USE_UPNP:=1
+USE_UPNP=1
 
 # for boost 1.37, add -mt to the boost libraries
 # use: qmake BOOST_LIB_SUFFIX=-mt
@@ -27,8 +27,7 @@ USE_UPNP:=1
 windows:LIBS += -lshlwapi
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
-LIBS += -lboost_system-mgw54-mt-s-x32-1_71 -lboost_filesystem-mgw54-mt-s-x32-1_71 -lboost_program_options-mgw54-mt-s-x32-1_71 -lboost_thread-mgw54-mt-s-x32-1_71
-BOOST_LIB_SUFFIX=-mgw54-mt-s-x32-1_71
+BOOST_LIB_SUFFIX=
 BOOST_INCLUDE_PATH=C:/deps/boost_1_71_0
 BOOST_LIB_PATH=C:/deps/boost_1_71_0/stage/lib
 BDB_INCLUDE_PATH=C:/deps/db-4.8.30.NC/build_unix
@@ -364,7 +363,7 @@ CODECFORTR = UTF-8
 TRANSLATIONS = $$files(src/qt/locale/bitcoin_*.ts)
 
 isEmpty(QMAKE_LRELEASE) {
-    win32:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]\\lrelease.exe
+    win32:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease
     else:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease
 }
 isEmpty(QM_DIR):QM_DIR = $$PWD/src/qt/locale
@@ -387,10 +386,10 @@ OTHER_FILES += README.md \
     src/qt/test/*.h
 
 # platform specific defaults, if not overridden on command line
-isEmpty(BOOST_LIB_SUFFIX) {
-    macx:BOOST_LIB_SUFFIX = -mt
-    win32:BOOST_LIB_SUFFIX = -mgw54-mt-s-x32-1_71
-}
+#isEmpty(BOOST_LIB_SUFFIX) {
+#    macx:BOOST_LIB_SUFFIX = -mt
+#    win32:BOOST_LIB_SUFFIX = -mgw54-mt-s-x32-1_71
+#}
 
 isEmpty(BOOST_THREAD_LIB_SUFFIX) {
     BOOST_THREAD_LIB_SUFFIX = $$BOOST_LIB_SUFFIX

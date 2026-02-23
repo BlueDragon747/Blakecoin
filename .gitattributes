@@ -1,3 +1,29 @@
+* text=auto
+
+# Source code - always LF in repo
+*.c text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.pro text eol=lf
+*.ts text eol=lf
+*.ui text eol=lf
+*.qrc text eol=lf
+
+# Binary files - no conversion
+*.icns binary
+*.png binary
+*.ico binary
+*.xpm binary
+*.pgp binary
+*.pem binary
+*.svg binary
+
+# Existing rules
 *.ts linguist-language=c_cpp
 100.00% c_cpp
 src/version.cpp export-subst
