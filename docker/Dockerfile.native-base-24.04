@@ -13,6 +13,7 @@ RUN sed -i 's/ [a-z]*-backports//' /etc/apt/sources.list.d/*.sources 2>/dev/null
     libboost-all-dev \
     libminiupnpc-dev \
     libevent-dev \
+    libzmq5 libzmq3-dev \
     libprotobuf-dev protobuf-compiler \
     qtbase5-dev qttools5-dev qttools5-dev-tools \
     libqrencode-dev \

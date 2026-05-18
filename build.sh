@@ -878,6 +878,7 @@ compile_linux_qt_launcher() {
     local output_path="$1"
     local target_rel="${2:-.runtime/${QT_NAME}-bin}"
     local use_runtime_env="${3:-1}"
+    local force_docker="${4:-0}"
     local launcher_cc="${CC:-}"
     local output_dir=""
     local output_name=""
@@ -896,7 +897,7 @@ compile_linux_qt_launcher() {
         exit 1
     }
 
-    if [[ -z "$launcher_cc" ]]; then
+    if [[ "$force_docker" != "1" && -z "$launcher_cc" ]]; then
         for candidate in gcc cc clang; do
             if command -v "$candidate" >/dev/null 2>&1; then
                 launcher_cc="$candidate"
@@ -905,7 +906,7 @@ compile_linux_qt_launcher() {
         done
     fi
 
-    [[ -n "$launcher_cc" ]] || {
+    if [[ "$force_docker" == "1" || -z "$launcher_cc" ]]; then
         if command -v docker >/dev/null 2>&1 && [[ -n "${DOCKER_NATIVE:-}" ]]; then
             output_dir="$(cd "$(dirname "$output_path")" && pwd)"
             output_name="$(basename "$output_path")"
@@ -944,7 +945,7 @@ done
         fi
         chmod +x "$output_path"
         return
-    }
+    fi
 
     # Ubuntu 20's default PIE launcher gets classified as application/x-sharedlib
     # in GNOME, so force a normal executable for release-click behavior.
@@ -1507,7 +1508,7 @@ finalize_linux_native_output() {
     if [[ "$target" == "qt" || "$target" == "both" ]]; then
         if [[ "$ubuntu_ver" == 20.04* ]]; then
             cp "$qt_source_binary" "$output_dir/${QT_NAME}-bin"
-            compile_linux_qt_launcher "$output_dir/$QT_NAME" "${QT_NAME}-bin" 0
+            compile_linux_qt_launcher "$output_dir/$QT_NAME" "${QT_NAME}-bin" 0 1
         else
             cp "$qt_source_binary" "$output_dir/$QT_NAME"
         fi
